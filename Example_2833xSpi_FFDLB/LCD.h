@@ -27,8 +27,8 @@
 #define SPI_INDEX   (0x00)     /* RS bit 0 within start byte         */
 
 /* CS LCD*/
-#define SPI_CS_LCD_LOW GpioDataRegs.GPADAT.bit.GPIO19 = 0;
-#define SPI_CS_LCD_HIGH GpioDataRegs.GPADAT.bit.GPIO19 = 1;
+#define SPI_CS_LCD_LOW GpioDataRegs.GPBDAT.bit.GPIO57 = 0;
+#define SPI_CS_LCD_HIGH GpioDataRegs.GPBDAT.bit.GPIO57 = 1;
 
 /* CS Touchpanel */
 #define SPI_CS_TP_LOW GpioDataRegs.GPACLEAR.bit.GPIO19 = 1;

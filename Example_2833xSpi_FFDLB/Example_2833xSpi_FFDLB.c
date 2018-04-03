@@ -52,12 +52,14 @@ void UI_LCD_Tuner_mode();
 void UI_LCD_Tune(int);
 
 //UI State Functions
-void Board_Initialize();
+void State_Initialize();
 void Attempt_RF_Connect();
 bool BT_Connect();
-int Main_Mode();
+void Main_Mode();
 void Tuner();
-void State_Machine();
+void Initialize_Board();
+void State_Change();
+void Clear_Buttons();
 
 #define HOLD_MODE 0
 #define MOD_MODE 1
@@ -90,6 +92,7 @@ typedef struct
     int value1;
     char* param2;
     int value2;
+    int FX_index;
 } Effect;
 
 typedef enum
@@ -107,14 +110,15 @@ typedef struct
     Effect FX[4];
     bool RF_Connected;
     int currentEffect;
+    int Flex_State;
 } Board_State;
 
-Board_State Global_Board_State;
+Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
-char FX_names[NumFX][11] = {"Bypass", "Wah", "VolSwell", "Flanger", "PitchShift"};
-char param1_names[NumFX][3] = {"TBD", "TBD", "TBD", "TBD", "TBD"};
+char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShift"};
+char param1_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD"};
 int value1_init[NumFX] = {0, 0, 0, 0, 0};
-char param2_names[NumFX][3] = {"TBD", "TBD", "TBD", "TBD", "TBD"};
+char param2_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD"};
 int value2_init[NumFX] = {0, 0, 0, 0, 0};
 
 bool Button1 = false;
@@ -189,12 +193,13 @@ void main(void)
    UI_LCD_Tuner_mode();
    UI_LCD_Tune(440);*/
 
-   State_Machine();
+   Initialize_Board();
 
 
    while(1)
    {
-
+       if(Global_Board_State.boardMode == Tuner_Mode) UI_LCD_Tune(440);
+       State_Change();
    }
 }
 
@@ -598,9 +603,16 @@ void UI_LCD_Tune(int freq)
 {
 
    int i;
+   char Low[] = "Low";
+   char High[] = "High";
 
    static int16_t olddiff = 0;
    static int16_t old_closest_note = 254;
+   if(freq < 0)
+   {
+       olddiff = 0;
+       old_closest_note = 254;
+   }
    int16_t note_cents = cents(freq);
    int16_t closest_note = (note_cents + 50)/100;
    //char note_name[7] = note_names[closest_note];
@@ -609,7 +621,18 @@ void UI_LCD_Tune(int freq)
    if(old_closest_note != closest_note)
    {
        LCD_DrawRectangle(80, 240, 60, 100, LCD_WHITE);
-       LCD_Text(90, 60, (uint16_t *) note_names[closest_note], LCD_BLACK, 3);
+       if(closest_note >= 0 && closest_note <= 107)
+       {
+           LCD_Text(90, 60, (uint16_t *) note_names[closest_note], LCD_BLACK, 3);
+       }
+       if(closest_note < 0)
+       {
+           LCD_Text(90, 60, (uint16_t *) Low, LCD_BLACK, 3);
+       }
+       if(closest_note > 107)
+       {
+           LCD_Text(90, 60, (uint16_t *) High, LCD_BLACK, 3);
+       }
        old_closest_note = closest_note;
    }
 
@@ -636,7 +659,7 @@ void UI_LCD_Tune(int freq)
 
 }
 
-void Board_Initialize()
+void State_Initialize()
 {
     LCD_Init();
     UI_LCD_Logo_mode();
@@ -649,6 +672,7 @@ void Board_Initialize()
         Global_FXLib[i].value1 = value1_init[i];
         Global_FXLib[i].param2 = param2_names[i];
         Global_FXLib[i].value2 = value2_init[i];
+        Global_FXLib[i].FX_index = i;
     }
 
     Global_Board_State.boardMode = Logo_Mode;
@@ -658,6 +682,7 @@ void Board_Initialize()
     }
     Global_Board_State.RF_Connected = false;
     Global_Board_State.currentEffect = FX1;
+    Global_Board_State.Flex_State = HOLD_MODE;
 
 
 }
@@ -665,36 +690,33 @@ void Board_Initialize()
 bool BT_Connect()
 {
     DELAY_US(100000);
-    return true;
+    return false;
 }
 void Attempt_RF_Connect()
 {
     bool done = false;
-    while(done != true)
+    Global_Board_State.boardMode = RF_Connect_Mode;
+    UI_LCD_RF_Connect_mode();
+    if(BT_Connect())
     {
-        Global_Board_State.boardMode = RF_Connect_Mode;
-        UI_LCD_RF_Connect_mode();
-        if(BT_Connect())
-        {
-            Global_Board_State.RF_Connected = true;
-            done = true;
-        }
-        else
-        {
-            UI_LCD_RF_Try_Again_mode();
-            while(Button1 == false && Button2 == false){};
-            if(Button1) continue;
-            if(Button2) done = true;
-        }
+        Global_Board_State.RF_Connected = true;
+        done = true;
+        Main_Mode();
     }
+    else
+    {
+        Global_Board_State.RF_Connected = false;
+        UI_LCD_RF_Try_Again_mode();
+    }
+
 }
 
-int Main_Mode()
+void Main_Mode()
 {
     Global_Board_State.boardMode = Main_Menu_Mode;
     UI_LCD_Main_mode();
     UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
-    while(1){
+    /*while(1){
         while(!Button1 && !Button2 && !Button3 && !Button4 &&
                 !ButtonUp && !ButtonDown && !Switch1 && !Switch2 &&
                 !Switch3 && !Switch4){};
@@ -740,28 +762,266 @@ int Main_Mode()
         }
         if(ButtonUp) return EXIT_RF;
         if(ButtonDown) return EXIT_Tuner;
-    }
+    }*/
 }
 
 void Tuner()
 {
+    Global_Board_State.boardMode = Tuner_Mode;
     UI_LCD_Tuner_mode();
-    while(!ButtonUp)
-    {
-        UI_LCD_Tune(440);
-    }
-    DELAY_US(100000);
+    UI_LCD_Tune(-1);
 }
 
-void State_Machine()
+void Initialize_Board()
 {
-    Board_Initialize();
+    State_Initialize();
     Attempt_RF_Connect();
-    while(1)
+    while(Global_Board_State.RF_Connected == false)
     {
-        int Exit_Code = Main_Mode();
-        if(Exit_Code == EXIT_RF) Attempt_RF_Connect();
-        else if(Exit_Code == EXIT_Tuner) Tuner();
+        while(Button1 == false && Button2 == false){};
+        if(Button1)
+        {
+            Clear_Buttons();
+            Attempt_RF_Connect();
+        }
+        else if(Button2)
+        {
+            Clear_Buttons();
+            break;
+        }
+    }
+    Main_Mode();
+
+}
+
+void State_Change()
+{
+    static int FX_Modify = -1;
+    if(Global_Board_State.boardMode == Main_Menu_Mode)
+    {
+        if(Switch1)
+        {
+            Clear_Buttons();
+            if(Global_Board_State.currentEffect != FX1)
+            {
+                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+                Global_Board_State.currentEffect = FX1;
+                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+            }
+        }
+        if(Switch2)
+        {
+            Clear_Buttons();
+            if(Global_Board_State.currentEffect != FX2)
+            {
+                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+                Global_Board_State.currentEffect = FX2;
+                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+            }
+        }
+        if(Switch3)
+        {
+            Clear_Buttons();
+            if(Global_Board_State.currentEffect != FX3)
+            {
+                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+                Global_Board_State.currentEffect = FX3;
+                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+            }
+        }
+        if(Switch4)
+        {
+            Clear_Buttons();
+            if(Global_Board_State.currentEffect != FX4)
+            {
+                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+                Global_Board_State.currentEffect = FX4;
+                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+            }
+        }
+        if(ButtonUp)
+        {
+            Clear_Buttons();
+            Attempt_RF_Connect();
+        }
+
+        if(ButtonDown)
+        {
+            Clear_Buttons();
+            Tuner();
+        }
+
+        if(Button1)
+        {
+            Clear_Buttons();
+            Global_Board_State.boardMode = Effect_Setting_Mode;
+            FX_Modify = FX1;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX1].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX1].value2;
+            Prev_Board_State = Global_Board_State;
+            UI_LCD_Effect_Setting_mode();
+            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX1].name, Global_Board_State.FX[FX1].param1, val1, Global_Board_State.FX[FX1].param2, val2);
+        }
+
+        else if(Button2)
+        {
+            Clear_Buttons();
+            Global_Board_State.boardMode = Effect_Setting_Mode;
+            FX_Modify = FX2;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX2].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX2].value2;
+            Prev_Board_State = Global_Board_State;
+            UI_LCD_Effect_Setting_mode();
+            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX2].name, Global_Board_State.FX[FX2].param1, val1, Global_Board_State.FX[FX2].param2, val2);
+        }
+
+        else if(Button3)
+        {
+            Clear_Buttons();
+            Global_Board_State.boardMode = Effect_Setting_Mode;
+            FX_Modify = FX3;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX3].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX3].value2;
+            Prev_Board_State = Global_Board_State;
+            UI_LCD_Effect_Setting_mode();
+            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX3].name, Global_Board_State.FX[FX3].param1, val1, Global_Board_State.FX[FX3].param2, val2);
+        }
+
+        else if(Button4)
+        {
+            Clear_Buttons();
+            Global_Board_State.boardMode = Effect_Setting_Mode;
+            FX_Modify = FX4;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX4].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX4].value2;
+            Prev_Board_State = Global_Board_State;
+            UI_LCD_Effect_Setting_mode();
+            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX4].name, Global_Board_State.FX[FX4].param1, val1, Global_Board_State.FX[FX4].param2, val2);
+        }
+
+
+    }
+    if(Global_Board_State.RF_Connected == false && Global_Board_State.boardMode == RF_Connect_Mode)
+    {
+        if(Button1)
+        {
+            Clear_Buttons();
+            Attempt_RF_Connect();
+        }
+        if(Button2)
+        {
+            Clear_Buttons();
+            Main_Mode();
+
+        }
+    }
+    if(Global_Board_State.boardMode == Effect_Setting_Mode)
+    {
+        if(Button1)
+        {
+            Clear_Buttons();
+            Main_Mode();
+        }
+        if(Button2)
+        {
+            Clear_Buttons();
+            Global_Board_State = Prev_Board_State;
+            Main_Mode();
+        }
+        if(Button3 && Button4)
+        {
+            Clear_Buttons();
+            Global_Board_State.Flex_State++;
+            if(Global_Board_State.Flex_State > 2) Global_Board_State.Flex_State = 0;
+            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+        }
+        if(Button3)
+        {
+            Clear_Buttons();
+            Global_Board_State.FX[FX_Modify].value1++;
+            if(Global_Board_State.FX[FX_Modify].value1 > 9) Global_Board_State.FX[FX_Modify].value1 = 0;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX_Modify].value1;
+            UI_LCD_Effect_Change_Param(P1, val1);
+        }
+        if(Button4)
+        {
+            Clear_Buttons();
+            Global_Board_State.FX[FX_Modify].value2++;
+            if(Global_Board_State.FX[FX_Modify].value2 > 9) Global_Board_State.FX[FX_Modify].value2 = 0;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX_Modify].value2;
+            UI_LCD_Effect_Change_Param(P2, val2);
+        }
+        if(ButtonUp)
+        {
+            Clear_Buttons();
+            int FX_tag = Global_Board_State.FX[FX_Modify].FX_index + 1;
+            if(FX_tag >= NumFX) FX_tag = 0;
+            Global_Board_State.FX[FX_Modify].name = Global_FXLib[FX_tag].name;
+            Global_Board_State.FX[FX_Modify].param1 = Global_FXLib[FX_tag].param1;
+            Global_Board_State.FX[FX_Modify].param2 = Global_FXLib[FX_tag].param2;
+            Global_Board_State.FX[FX_Modify].FX_index = Global_FXLib[FX_tag].FX_index;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX_Modify].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX_Modify].value2;
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX_Modify].name, Global_Board_State.FX[FX_Modify].param1, val1, Global_Board_State.FX[FX_Modify].param2, val2);
+
+        }
+        if(ButtonDown)
+        {
+            Clear_Buttons();
+            int FX_tag = Global_Board_State.FX[FX_Modify].FX_index - 1;
+            if(FX_tag < 0) FX_tag = NumFX - 1;
+            Global_Board_State.FX[FX_Modify].name = Global_FXLib[FX_tag].name;
+            Global_Board_State.FX[FX_Modify].param1 = Global_FXLib[FX_tag].param1;
+            Global_Board_State.FX[FX_Modify].param2 = Global_FXLib[FX_tag].param2;
+            Global_Board_State.FX[FX_Modify].FX_index = Global_FXLib[FX_tag].FX_index;
+            char val1[] = "0";
+            val1[0] += Global_Board_State.FX[FX_Modify].value1;
+            char val2[] = "0";
+            val2[0] += Global_Board_State.FX[FX_Modify].value2;
+            UI_LCD_Effect_Shift_Setting(Global_Board_State.FX[FX_Modify].name, Global_Board_State.FX[FX_Modify].param1, val1, Global_Board_State.FX[FX_Modify].param2, val2);
+
+        }
+
+    }
+    if(Global_Board_State.boardMode == Tuner_Mode)
+    {
+        if(ButtonUp)
+        {
+            Clear_Buttons();
+            Main_Mode();
+        }
     }
 }
+
+void Clear_Buttons()
+{
+    ButtonUp = 0;
+    ButtonDown = 0;
+    Button1 = 0;
+    Button2 = 0;
+    Button3 = 0;
+    Button4 = 0;
+    Switch1 = 0;
+    Switch2 = 0;
+    Switch3 = 0;
+    Switch4 = 0;
+}
+
+
 

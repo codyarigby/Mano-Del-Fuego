@@ -109,7 +109,7 @@
 //
 //###########################################################################
 //
-// Original Author: C. Peng
+// Original Author: Cody Rigby
 //
 // $TI Release:  $
 // $Release Date:  $
@@ -120,57 +120,40 @@
 #include "DSP28x_Project.h"     // Device Headerfile and Examples Include File
 //#include "AIC23.h"
 #include "DSP2833x_Device.h"     // DSP2833x Headerfile Include File
-#include "DSP2833x_Examples.h"   // DSP2833x Examples Include File
-//#include <DSP28x_Project.h>
+#include "MDF_init.h"
+#include "UI.h"
 
 
-// AIC23_DSP_SPI_control.c External Function Prototypes
+
+// *** AIC23_DSP_SPI_control.c External Function Prototypes *** //
 extern void init_mcbsp_spi();
 extern void mcbsp_xmit (int a);
 extern void aic23_init(int mic, int i2s_mode);
 
-// Prototype statements for functions found within this file.
-void init_uart(void);	// uart initialization
-void scib_xmit(int b);  // uart transmission function
-int sci_receive(void);  // uart receive function
-void init_dma(void);
-void init_mcbspa(void);
-void init_Xintf(void);
-static void LCD_initSPI(void);
-void spi_xmit(Uint16 a);
-void button_1(void);
-void button_2(void);
-void button_3(void);
-void button_4(void);
-
+// *** Interrupt Definitions *** //
 interrupt void local_D_INTCH1_ISR(void); 	// Channel 1 Rx ISR
 interrupt void local_D_INTCH2_ISR(void); 	// Channel 2 Tx ISR
 interrupt void local_SCIRXINTB_ISR(void);   // Scib Rx ISR aleady defined in pie.h
 interrupt void local_timer_ISR(void);		// timer isr
 interrupt void local_XINT1_ISR(void);
-interrupt void local_XINT2_ISR(void);
+interrupt void local_XINT3_ISR(void);
+interrupt void local_XINT4_ISR(void);
+interrupt void local_XINT5_ISR(void);
+interrupt void local_XINT6_ISR(void);
 
-
-void Init_timer1(void);
-void Init_gpioUI(void);
-//interrupt void local_MRINTA_ISR(void); 	 //MCBSPA RX ISR
 
 //===============================================================
 // SELECT AUDIO INPUT AND DIGITAL AUDIO INTERFACE OPTIONS HERE:
 //===============================================================
-
 #define MIC 		0      	// 0 = line input, 1 = microphone input
 #define I2S_SEL 	0  		// 0 = normal DSP McBSP dig. interface, 1 = I2S interface
 
 //effect defines
-#define WAH 		0
-#define FLANGER 	1
+#define WAH 		1
+#define FLANGER 	3
 #define VOLSWELL 	2
-#define BYPASS 		3
+#define BYPASS 		0
 #define PITCH		4
-
-#define MENU		0
-#define EDIT		1
 
 
 
@@ -302,14 +285,21 @@ static float hanning[1024] = { 0.00000000, 0.00000340, 0.00001358, 0.00003056, 0
 
 
 
-
-
-
-
-
 #pragma DATA_SECTION (ping_buffer, "DMARAML5"); // Place ping and pong in DMA RAM L5
 #pragma DATA_SECTION (pong_buffer, "DMARAML5");
-#pragma DATA_SECTION(ext_Buffer, "extSRAM6")
+#pragma DATA_SECTION(ext_Buffer, "extSRAM6");
+#pragma DATA_SECTION(pitch_shift, "EFFECTRAM6");
+#pragma DATA_SECTION(sample, "EFFECTRAM6");
+#pragma DATA_SECTION(zcross_pos, "EFFECTRAM6");
+#pragma DATA_SECTION(zcross_neg, "EFFECTRAM6");
+#pragma DATA_SECTION(imu_dat, "EFFECTRAM6");
+#pragma DATA_SECTION(flang, "EFFECTRAM6");
+#pragma DATA_SECTION(dig_delay, "EFFECTRAM6");
+#pragma DATA_SECTION(tremolo, "EFFECTRAM6");
+#pragma DATA_SECTION(wah_svf, "EFFECTRAM6");
+#pragma DATA_SECTION(bass_svf, "EFFECTRAM6");
+#pragma DATA_SECTION(treble_svf, "EFFECTRAM6");
+
 
 int16 ext_Buffer[32767];
 Uint16 ext_Buffer_size = 32767; // and these pointers with 0x7FFF
@@ -362,9 +352,6 @@ struct ZCROSS_NEG{
 //interpolation tools
 int16 ext_prev_inter;
 int16 interpol_inc;
-
-
-
 
 // *******************************************************************************************************
 // 							Audio sample related variables
@@ -427,22 +414,26 @@ Uint16 zcross_period 	= 0;
 struct FLANG {
 	Uint16 upper_delay;
 	Uint16 lower_delay;
-	Uint16 speed;
+	float  speed[10];
 	Uint16 delay;
+	Uint16 delay_range[10];
 	int16  delay_index;
 } flang;
 
 struct DELAY {
 	Uint16 upper_delay;
 	Uint16 lower_delay;
-	Uint16 speed;
+	Uint16 speed[10];
 	Uint16 delay;
 	int16  delay_index;
 } dig_delay;
 
 struct TREMOLO {
-	Uint16 amplitude;
-	Uint16 period;
+	float amplitude[10];
+	float periodHigh;
+	float periodLow;
+	float period;
+	float periodrange[10];
 } tremolo;
 
 
@@ -461,19 +452,23 @@ Uint16 nextCounter = 0;
 Uint16 nextCounter2 = 0;
 Uint16 nextHold = 0;
 
-
-
 // *******************************************************************************************************
 // 							UI Variables
 // *******************************************************************************************************
 
-// set Xint1 and Xint2 to alternate between GPIO0/GPIO1 and GPIO2/GPIO3 every DMA Audio transfer
-// xintSel == 0;  (GPIO0/GPIO1)    Xint1 -> effectsel = WAH,       		Xint2 -> effectsel = FLANGER,
-// xintSel == 1;  (GPIO2/GPIO3)    Xint1 -> effectsel = VOLSWELL,       Xint2 -> effectsel = BYPASS,
 
-Uint16 xintSel = 0;
-Uint16 effectsel = PITCH;
-//Uint16 effectsel = BYPASS;
+
+// Dummy Counter Variables
+Uint16 Xint_count   	= 0;
+Uint16 Button1_count 	= 0;
+Uint16 Button2_count 	= 0;
+Uint16 Button3_count 	= 0;
+Uint16 Button4_count 	= 0;
+Uint16 ButtonUp_count	= 0;
+Uint16 ButtonDown_count = 0;
+
+
+
 
 // *******************************************************************************************************
 // 							State Variable Filter Variables
@@ -482,44 +477,26 @@ Uint16 effectsel = PITCH;
 // damp = 0.05, Q = 2*damp
 // F controller by timer 0
 struct SVF {
-   float Fupper;		// upper boundary of F
-   float Flower;        // lower boundary of F
-   float F;				// Tuning Coefficient  F1 = 2sin(pi*fc/fs)
-   float Q;				// Tuning Coefficient  Q1 = 2sigma
-   float  HPF;
-   float  BPF[2];
-   float  LPF[2];
+   float Fupper;		    // upper boundary of F
+   float Flower;            // lower boundary of F
+   float F;	     			// Tuning Coefficient  F1 = 2sin(pi*fc/fs)
+   float Q[10];				// Tuning Coefficient  Q1 = 2sigma (10 different Q values to select from)
+   float F_range[10];       // 10 different wah ranges
+   float HPF;
+   float BPF[2];
+   float LPF[2];
 };
 struct SVF wah_svf;
 struct SVF bass_svf;
 struct SVF treble_svf;
 
-float fIn;
+
+
+// *** Dummy Variables used for visualization in debugging *** //
+//float fIn;
 float dummy_buffer[1024];
-float *dptr = &dummy_buffer[0];
-
-
-// *******************************************************************************************************
-// 							UI Structures
-// *******************************************************************************************************
-struct EFFECT_SEL
-{
-	Uint16 effect_selection;  // the effect that was selected (index of Effect Chain)
-}effect_sel;
-
-struct MENU_SEL
-{
-	Uint16 current;
-}menu;
-
-// *******************************************************************************************************
-// 							Effects Structure
-// *******************************************************************************************************
-struct EFFECT_CHAIN
-{
-	Uint16 effect    [4];	// effect number for effect define
-	Uint32 effect_ptr[4];	// Array of pointers to effects structures
-};
+Uint16 dummy_index = 0;
+//float *dptr = &dummy_buffer[0];
 
 
 // *******************************************************************************************************
@@ -528,24 +505,27 @@ struct EFFECT_CHAIN
 Uint16 toggler				= 0;
 Uint16 ii 					= 0;
 Uint16 k 					= 0;
+Uint16 effectsel			= BYPASS;
 
+//effect UI Control
+bool   state_change_flag    = false;
+Uint16 p1					= 0;
+Uint16 p2					= 0;
 
 void main(void)
 {
+
+      InitSysCtrl();
+
+
+
    EALLOW;
-   // Step 1. Initialize System Control:
-   // PLL, WatchDog, enable Peripheral Clocks
-   //DisableDog();
-   //InitPll(10, 3);
-   InitSysCtrl();
-   //SysCtrlRegs.LOSPCP.all = 1;
 
    // Initalize GPIO:
    // For this example, enable the GPIO PINS for McBSP operation.
    InitMcbspGpio();
-   init_uart();
+   //init_uart();
    init_Xintf();
-   LCD_initSPI();
 
    // Fill the buffers with dummy data
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
@@ -581,7 +561,7 @@ void main(void)
     DELAY_US(90L);
     DELAY_US(900000L);
 
-	init_dma();					// Initialize the DMA before McBSP, so that DMA is ready to transfer the McBSP data
+	init_dma(ping_buff_offset, pong_buff_offset);					// Initialize the DMA before McBSP, so that DMA is ready to transfer the McBSP data
    	init_mcbspa();      		// Initalize McBSP-A for audio data transfers with audio codec
     delay_loop();				// Delay loop
     Init_timer1();				// Initialize timer 1
@@ -592,30 +572,36 @@ void main(void)
     // Assign ISRS
     PieVectTable.SCIRXINTB 	= &local_SCIRXINTB_ISR; // ISR Triggered by RXRDY flag
 	PieVectTable.DINTCH1 	= &local_D_INTCH1_ISR;	// Triggered by DMA Channel 1 Transfer
-    PieVectTable.DINTCH2 	= &local_D_INTCH2_ISR;  // Triggered by DMA Channel 2 Transfer
+    //PieVectTable.DINTCH2 	= &local_D_INTCH2_ISR;  // Triggered by DMA Channel 2 Transfer
     PieVectTable.XINT13     = &local_timer_ISR;		// Triggered by Timer 1
-    PieVectTable.XINT1 		= &local_XINT1_ISR;		// Triggered by GPIO0 or GPIO2
-    PieVectTable.XINT2 		= &local_XINT2_ISR;		// Triggered by GPIO1 or GPIO3
+
+    PieVectTable.XINT1 		= &local_XINT1_ISR;		// Triggered by GPIO9
+    PieVectTable.XINT3 		= &local_XINT3_ISR;		// Triggered by GPIO32 (stomp0 SDAA)
+    PieVectTable.XINT4 		= &local_XINT4_ISR;		// Triggered by GPIO33 (stomp1 SCLA)
+    PieVectTable.XINT5 		= &local_XINT5_ISR;		// Triggered by GPIO35 (stomp2 XRWn )
+    PieVectTable.XINT6 		= &local_XINT6_ISR;		// Triggered by GPIO34 (stomp3 XREADY)
 
     // Configure PIE interrupts
-
 	PieCtrlRegs.PIECTRL.bit.ENPIE = 1;  // Enable vector fetching from PIE block
 	PieCtrlRegs.PIECTRL.all  |= 1;  	// Enable vector fetching from PIE block
 
 	// Enable PIE to drive pulse from different PIE groups into the CPU
 	//PieCtrlRegs.PIEACK.all = 0xFFFF;    // Enables PIE to drive a pulse into the CPU
-	PieCtrlRegs.PIEACK.bit.ACK1 = 1;      // Enables PIE to drive a pulse into the CPU
-	PieCtrlRegs.PIEACK.bit.ACK7 = 1;      // Enables PIE to drive a pulse into the CPU
-	PieCtrlRegs.PIEACK.bit.ACK9 = 1;      // Enables PIE to drive a pulse into the CPU
+	PieCtrlRegs.PIEACK.bit.ACK12 = 1;      // Enables PIE to drive a pulse into the CPU
+	PieCtrlRegs.PIEACK.bit.ACK1  = 1;      // Enables PIE to drive a pulse into the CPU
+	PieCtrlRegs.PIEACK.bit.ACK7  = 1;      // Enables PIE to drive a pulse into the CPU
+	PieCtrlRegs.PIEACK.bit.ACK9  = 1;      // Enables PIE to drive a pulse into the CPU
 	//PieCtrlRegs.PIEACK.bit.ACK3 = 1;    // Enables PIE to drive a pulse into the CPU
 
 	// The interrupt can be asserted in the following interrupt lines
-	PieCtrlRegs.PIEIER1.bit.INTx4 = 1;  // Enable PIE Gropu 1 INT4 (XINT1)
-	PieCtrlRegs.PIEIER1.bit.INTx5 = 1;  // Enable PIE Gropu 1 INT5 (XINT2)
+	PieCtrlRegs.PIEIER12.bit.INTx1 = 1;  // Enable PIE Group12 INT1 (XINT3)
+	PieCtrlRegs.PIEIER12.bit.INTx2 = 1;  // Enable PIE Group12 INT2 (XINT4)
+	PieCtrlRegs.PIEIER12.bit.INTx3 = 1;  // Enable PIE Group12 INT3 (XINT5)
+	PieCtrlRegs.PIEIER12.bit.INTx4 = 1;  // Enable PIE Group12 INT4 (XINT6)
+	PieCtrlRegs.PIEIER1.bit.INTx4 = 1;  // Enable PIE Group 1 INT4 (XINT1)
 	PieCtrlRegs.PIEIER7.bit.INTx1 = 1;	// Enable INTx.1 of INT7 (DMA CH1)
 	PieCtrlRegs.PIEIER7.bit.INTx2 = 1;  // Enable INTx.2 of INT7 (DMA CH2)
 	PieCtrlRegs.PIEIER9.bit.INTx3 = 1;  // Enable INTx.3 of INT9 (SCIB RXRDY Flag)
-
 	//DmaRegs.CH1.CONTROL.bit.RUN = 1; // Start rx on Channel 1
 
 
@@ -630,6 +616,7 @@ DELAY_US(10000L);
 scib_xmit('$');
 DELAY_US(10000L);
 */
+init_uart();
 // set to fast data mode
 for(ii = 0; ii < 4; ii++)
 {
@@ -647,48 +634,55 @@ for(ii = 0; ii < 15; ii++)
 // the BT  module will now connect to the MCM's bluetooth module
 DELAY_US(10000L);
 
+//Initialize_Board();
 
 
-// Enable all interrupt channels
+
+
+
+// *** Enable all interrupt channels *** //
+IER |= M_INT12;								// Enable Xint for Stomp Buttons
 IER |= M_INT1;								// Enable Xint for UI Buttons
 IER |= M_INT13;								// Enable Interrupt for timer 1
 IER |= PIEACK_GROUP7;					    // Enable  INT7
 IER |= PIEACK_GROUP9;						// Enable  INT9
 EINT;      					        		// Global enable of interrupts
 
+Initialize_Board();
 
 //CpuTimer1.RegsAddr->TCR.bit.TSS = 0; // start the timer
 DmaRegs.CH1.CONTROL.bit.RUN = 1; // Start rx on Channel 1
 EDIS;
-
-
-// Wait for data
-// DELAY_US(A)
-//int16 delay_const = 512;
 delay = 0;
-
-
-
+k = 0;
 // **************** NEED TO WRITE A ROUTINE THAT INITIALIZES THE EFFECTS STRUCTURES ************************************//
-
-// Initialize the svf struct
-wah_svf.Q = 0.10; // Q = damp*2
-wah_svf.F = 0.04142;
-wah_svf.BPF[0]=0;
-wah_svf.BPF[1]=0;
-wah_svf.LPF[0]=0;
-wah_svf.LPF[1]=0;
-wah_svf.HPF=0;
-
+init_structs();
 
 imu_dat.XaccelPrev 	= 0;
-imu_dat.Xaccel 		= 0;
-imu_dat.XgyroPrev 	= 0;
-imu_dat.Xgyro 		= 0;
-
-k = 0;
+imu_dat.Xaccel		= 0;
+imu_dat.XgyroPrev	= 0;
+imu_dat.Xgyro		= 0;
+imu_dat.Xa_velocity = 0.0;
+imu_dat.Xa_velocity_prev = 0.0;
+imu_dat.Xa_pos = 0.0;
+imu_dat.Xg_velocity = 0.0;
+imu_dat.Xg_velocity_prev = 0.0;
+imu_dat.Xg_pos = 0.0;
+imu_dat.Xaccel_real = 0.0;
+imu_dat.Xaccel_real_prev = 0.0;
 
   	while(1) {
+
+  		if(state_change_flag)
+  		{
+  			state_change_flag = false;
+  			effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
+  			p1 = Global_Board_State.FX[Global_Board_State.currentEffect].value1;
+  			p2 = Global_Board_State.FX[Global_Board_State.currentEffect].value2;
+  			timer_reset = 1;
+  		}
+
+
 
   		if(d_flag == 1)
   		{
@@ -710,6 +704,7 @@ k = 0;
   			//buffer_uart[uart_i] = gyro_pos;
 
   			// logic that handles selecting between two different effects
+  			/*
   			if(scib_gyro & 0x0001)
 			{
   				effectsel = (effectsel+1) & 0x0003;
@@ -753,16 +748,18 @@ k = 0;
 						deactivateCounter = 0;
 					}
 				}
+				*/
 
   			if(effectsel == WAH)
   			{
   				// *** new way of doing wah, change it back if it sounds bad *** //
+
 				if(imu_dat.Xaccel > (imu_dat.XaccelPrev+280) | imu_dat.Xaccel < (imu_dat.XaccelPrev-280)) // set threshold
 				{
 					//wah_svf.F += 0.0050;
 					//imu_dat.Xaccel_real_prev = imu_dat.Xaccel_real;
-					imu_dat.Xaccel_real += (float)(imu_dat.Xaccel - imu_dat.XaccelPrev)*0.0000305185;
-					wah_svf.F += (wah_svf.Fupper - wah_svf.Flower)*imu_dat.Xaccel_real;
+					//imu_dat.Xaccel_real = imu_dat.Xaccel_real + (float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev;  //*0.0000305185;
+					wah_svf.F += (wah_svf.Fupper)*((float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev)*0.0000305185*0.3;
 					if(wah_svf.F > wah_svf.Fupper)
 					{
 						wah_svf.F = wah_svf.Fupper;
@@ -773,6 +770,10 @@ k = 0;
 					}
 					//fb = 0;
 				}
+
+				dummy_buffer[dummy_index] = (float)imu_dat.Xaccel;
+				dummy_index = 0x03ff & (dummy_index+1);
+
 				// *** this is the old way of doing wah *** //
 				/*
 				else if (imu_dat.Xaccel < (imu_dat.XaccelPrev-280)) // set threshold
@@ -810,8 +811,8 @@ k = 0;
   			else if(effectsel == VOLSWELL)
   			{
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
-  				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031;
-  				if(gyro_vol < 0)
+  				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.04;
+  				if(gyro_vol < 0.0)
   				{
   					gyro_vol = 0;
   				}
@@ -824,7 +825,16 @@ k = 0;
   			{
   				if(imu_dat.Xgyro < 250 | imu_dat.Xgyro > 250)
 				{
-  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031;
+  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.04;
+  					if(imu_dat.Xg_pos < 0.0)
+					{
+  						imu_dat.Xg_pos = 0;
+					}
+					else if (imu_dat.Xg_pos > 1.0)
+					{
+						imu_dat.Xg_pos = 1.0;
+					}
+
   					pitch_shift.Per = pitch_shift.PerUpper - (pitch_shift.PerUpper - pitch_shift.PerLower)*imu_dat.Xg_pos;
   					if(pitch_shift.Per > pitch_shift.PerUpper)
   					{
@@ -837,7 +847,6 @@ k = 0;
   					pitch_shift.PerReset = 1;
 				}
   			}
-
 
   			// *** reset the d_flag to wait for next imu data packet from MCM *** //
   			d_flag = 0;
@@ -882,25 +891,26 @@ k = 0;
 				if(fb == 1)
 				{
 					flang.delay++;
-					if(delay > flang.upper_delay)
+					if(flang.delay > 1024 + flang.delay_range[p1])
 					{
-						flang.delay = flang.upper_delay;
+						flang.delay = 1024 + flang.delay_range[p1];
 					}
 				}
 				else if(fb == 0)
 					{
 						flang.delay--;
-						if(delay < flang.lower_delay)
+						if(delay < 1024 - flang.delay_range[p1])
 						{
-							flang.delay = flang.lower_delay;;
+							flang.delay = 1024 - flang.delay_range[p1];
 						}
 					}
 				if(timer_reset == 1)
 				{
-					CpuTimer1.RegsAddr->TCR.bit.TSS = 1;							// start the timer
-					ConfigCpuTimer(&CpuTimer1, 150, (float)flang.speed);			// 150Mhz, period defined by flanger structure
-					CpuTimer1.RegsAddr->TCR.bit.TSS = 0;							// start the timer
-					flang.delay = flang.lower_delay + ((flang.upper_delay - flang.lower_delay) >> 1);
+
+					CpuTimer1.RegsAddr->TCR.bit.TSS = 1;					// start the timer
+					ConfigCpuTimer(&CpuTimer1, 150, flang.speed[p2]);			// 150Mhz, period defined by flanger structure
+					CpuTimer1.RegsAddr->TCR.bit.TSS = 0;					// start the timer
+					//flang.delay = flang.lower_delay + ((flang.upper_delay - flang.lower_delay) >> 1);
 					timer_reset = 0;
 				}
 			}
@@ -914,6 +924,14 @@ k = 0;
 					CpuTimer1.RegsAddr->TCR.bit.TSS = 0;				// start the timer
 					pitch_shift.PerReset = 0;
 				}
+				if(timer_reset == 1)
+				{
+
+					CpuTimer1.RegsAddr->TCR.bit.TSS = 1;			// start the timer
+					ConfigCpuTimer(&CpuTimer1, 150, pitch_shift.Per);			// 150Mhz, period defined by flanger structure
+					CpuTimer1.RegsAddr->TCR.bit.TSS = 0;			// start the timer
+					timer_reset = 0;
+				}
 			}
 			t1_flag=0;
   		}
@@ -921,6 +939,11 @@ k = 0;
   		// Interrupt for the audio transfer
   		if(r_flag1==1)
   		{
+
+  			// *** if effect_current == effect_sel && effectChange_flag == 1
+  			// Change the corresponding effect structure in accordance with the signal chain effect parameter
+  			// effectChange_flag = 0
+
 
 
   			// *** Audio In Audio Out wiht lots of interpolation *** //
@@ -954,7 +977,7 @@ k = 0;
   			// *** Used for the 'wah' effect *** //
   			if(effectsel == WAH)
 			{
-				wah_svf.HPF    = ((float)(*ch1_ptr))*0.000031 - wah_svf.LPF[0] - (0.10)*(wah_svf.BPF[0]);
+				wah_svf.HPF    = ((float)(*ch1_ptr))*0.000031 - wah_svf.LPF[0] - (wah_svf.Q[p1])*(wah_svf.BPF[0]); // index Q using Nick's structure
 				wah_svf.BPF[1] = (wah_svf.F)*(wah_svf.HPF) + wah_svf.BPF[0];
 				wah_svf.LPF[1] = (wah_svf.F)*(wah_svf.BPF[1]) + wah_svf.LPF[0];
 
@@ -979,7 +1002,7 @@ k = 0;
   			}
   			else if (effectsel == VOLSWELL)
   			{
-  				fIn = (float)(*ch1_ptr)*0.000031*gyro_vol;
+  				float fIn = (float)(*ch1_ptr)*0.000031*gyro_vol;
   				McbspaRegs.DXR2.all = (int16)(fIn*32767.0);
   				McbspaRegs.DXR1.all = (int16)(fIn*32767.0);
 
@@ -1114,7 +1137,7 @@ k = 0;
   				}
 
   				McbspaRegs.DXR2.all = (ext_Buffer[pitch_shift.ext_index_delay1]);
-  				McbspaRegs.DXR1.all = *ch1_ptr;
+  				McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
   				pitch_shift.ext_delay_prev = ext_Buffer[pitch_shift.ext_index_delay1];
 
   			}
@@ -1137,97 +1160,6 @@ k = 0;
 // End of main()
 //===========================================================================
 
-
-void init_uart(void)
-{
-	// 115200 baud rate in BRR
-	EALLOW;
-
-	GpioCtrlRegs.GPAPUD.bit.GPIO15   = 0;	   	// Enable pull-up for GPIO15 (SCIRXDB)
-	GpioCtrlRegs.GPAPUD.bit.GPIO14   = 0;	   	// Enable pull-up for GPIO18 (SCITXDB)
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO15 = 3;		// Asynch input GPIO15
-	GpioCtrlRegs.GPAMUX1.bit.GPIO15  = 2;   	// UART input GPIO15 (SCIRXDB) refer to page 95 of spru439 pdf
-	GpioCtrlRegs.GPAMUX1.bit.GPIO14  = 2;   	// UART output GPIO15 (SCITXDB) refer to page 95 of spru439 pdf
-
-
-	SysCtrlRegs.PCLKCR0.bit.SCIBENCLK = 1;
-
-	ScibRegs.SCIHBAUD = 0x00;
-	//ScibRegs.SCILBAUD = 80; //115200
-	ScibRegs.SCILBAUD = 40;   //230400
-
-	ScibRegs.SCICCR.bit.STOPBITS = 0; 			// 1 stop bit
-	ScibRegs.SCICCR.bit.PARITY = 0; 			// odd parity, next line disables parity though
-	ScibRegs.SCICCR.bit.PARITYENA = 0; 			// parity disabled! no parity
-	ScibRegs.SCICCR.bit.LOOPBKENA = 0; 			// no loopback, idk what that is good for anyways
-	ScibRegs.SCICCR.bit.ADDRIDLE_MODE = 0; 		// no
-	ScibRegs.SCICCR.all = 0x07; 				// enables 8 bit mode async mode
-
-	//In idle-line mode: write a 1 to TXWAKE, then write data to register
-	//SCITXBUF to generate an idle period of 11 data bits
-
-	//SCI sleep. The TXWAKE bit controls selection of the data-transmit feature, depending on which transmit
-	//mode (idle-line or address-bit) is specified at the ADDR/IDLE MODE bit (SCICCR, bit 3). In a multiprocessor
-	//configuration, this bit controls the receiver sleep function. Clearing this bit brings the SCI out of the sleep
-	//mode.
-
-	ScibRegs.SCICTL1.all 		= 0x23;
-	ScibRegs.SCICTL1.bit.RXENA 		= 1;
-	ScibRegs.SCICTL1.bit.TXENA 		= 1;
-	//ScibRegs.SCICTL1.bit.SWRESET 	= 1;
-	ScibRegs.SCICTL2.bit.RXBKINTENA = 1; // enable interrupts
-	ScibRegs.SCICTL1.all 		= 0x23;
-	//ScibRegs.SCICTL1.bit.RXENA = 0x01;  // enable receiver and transmitter, relinquish sci from reset
-
-
-	//ScibRegs.SCICTL2.bit.TXEMPTY
-	/*
-	Transmitter empty flag. This flag’s value indicates the contents of the transmitter’s buffer register
-	(SCITXBUF) and shift register (TXSHF). An active SW RESET (SCICTL1.5), or a system reset,
-	sets this bit. This bit does not cause an interrupt request.
-	0 Transmitter buffer or shift register or both are loaded with data
-	1 Transmitter buffer and shift registers are both empty
-	*/
-
-	//ScibRegs.SCICTL2.bit.TXRDY
-	/*
-	Transmitter buffer register ready flag. When set, this bit indicates that the transmit data buffer
-	register, SCITXBUF, is ready to receive another character. Writing data to the SCITXBUF
-	automatically clears this bit. When set, this flag asserts a transmitter interrupt request if the
-	interrupt-enable bit, TX INT ENA (SCICTL2.0), is also set. TXRDY is set to 1 by enabling the SW
-	RESET bit (SCICTL1.5) or by a system reset.
-	0 SCITXBUF is full
-	1 SCITXBUF is ready to receive the next character
-	*/
-
-	//ScibRegs.SCIRXST.bit.RXRDY
-	/*
-	SCI receiver-ready flag. When a new character is ready to be read from the SCIRXBUF register,
-	the receiver sets this bit, and a receiver interrupt is generated if the RX/BK INT ENA bit
-	(SCICTL2.1) is a 1. RXRDY is cleared by a reading of the SCIRXBUF register, by an active SW
-	RESET, or by a system reset.
-	0 No new character in SCIRXBUF
-	1 Character ready to be read from SCIRXBUF
-	 */
-}
-
-// Transmit a character from the SCI
-void scib_xmit(int b)
-{
-    while (ScibRegs.SCIFFTX.bit.TXFFST != 0) {}
-    ScibRegs.SCITXBUF=b;
-}
-
-// sci_receive function
-// not used
-int sci_receive(void)
-{
-	int a;
-	while (ScibRegs.SCIFFRX.bit.RXFFST !=0);
-	a = ScibRegs.SCIRXBUF.all;
-	return a;
-
-}
 
 interrupt void local_timer_ISR()
 {
@@ -1354,467 +1286,160 @@ interrupt void local_D_INTCH1_ISR(void)		// DMA Ch1 - McBSP-A Rx
     EDIS;
 }
 
-// INT7.2
-interrupt void local_D_INTCH2_ISR(void)		// DMA Ch2 - McBSP-A Tx
-{
-    EALLOW;
-	// When DMA first starts working on ping buffer, set the shadow registers
-    //   to start at pong buffer next time and vice versa
-   	if(DmaRegs.CH2.SRC_ADDR_SHADOW == ping_buff_offset)
-	{
-	    DmaRegs.CH2.SRC_ADDR_SHADOW = pong_buff_offset;
-	    DmaRegs.CH2.SRC_BEG_ADDR_SHADOW = pong_buff_offset;
-	}
-	else
-	{
-	    DmaRegs.CH2.SRC_ADDR_SHADOW = ping_buff_offset;
-	    DmaRegs.CH2.SRC_BEG_ADDR_SHADOW = ping_buff_offset;
-	}
-
-    if(r_flag1)
-      {
-      	r_flag1 = 1;
-      }
-   	PieCtrlRegs.PIEACK.all = PIEACK_GROUP7; // To receive more interrupts from this PIE group, acknowledge this interrupt
-    EDIS;
-    r_flag2 = 1;
-
-}
-
 
 
 interrupt void local_XINT1_ISR(void)
 {
-	//Uint16 xintSel = 0;
-	//Uint16 effectsel = WAH;
-	//effect defines
-	//#define WAH 		0
-	//#define FLANGER 	1
-	//#define VOLSWELL 	2
-	//#define BYPASS 	3
+	/*
+	bool Button1 = false;
+	bool Button2 = false;
+	bool Button3 = false;
+	bool Button4 = false;
+	bool ButtonUp = false;
+	bool ButtonDown = false;
+	*/
 
+	/*
+	Uint16 Xint_count   	= 0;
+	Uint16 Button1_count 	= 0;
+	Uint16 Button2_count 	= 0;
+	Uint16 Button3_count 	= 0;
+	Uint16 Button4_count 	= 0;
+	Uint16 ButtonUp_count	= 0;
+	Uint16 ButtonDown_count = 0;
+	*/
+
+	Xint_count++;
 	if(GpioDataRegs.GPADAT.bit.GPIO0 == 0)
 	{
-		effectsel = WAH;
-		CpuTimer1.RegsAddr->TCR.bit.TSS = 1;			// stop the timer
-		ConfigCpuTimer(&CpuTimer1, 150, 200);			// 150Mhz, 200uS
-		CpuTimer1.RegsAddr->TCR.bit.TSS = 0;			// start the timer
+		// "Button Up" has been pressed
+		ButtonUp = true;
+		ButtonUp_count++;
+	}
+	else if(GpioDataRegs.GPADAT.bit.GPIO1 == 0)
+	{
+		// "Button Down" has been pressed
+		ButtonDown = true;
+		ButtonDown_count++;
 	}
 	else if(GpioDataRegs.GPADAT.bit.GPIO2 == 0)
 	{
-		effectsel = FLANGER;
-		CpuTimer1.RegsAddr->TCR.bit.TSS = 1;			// stop the timer
-		ConfigCpuTimer(&CpuTimer1, 150, 1700);			// 150Mhz, 600uS
-		CpuTimer1.RegsAddr->TCR.bit.TSS = 0;			// start the timer
-	}
-	// Ac
-	else if(GpioDataRegs.GPADAT.bit.GPIO1 == 0)
-	{
-		effectsel = VOLSWELL;
+		// "Button 1" has been pressed
+		Button1 = true;
+		Button1_count++;
+
 	}
 	else if(GpioDataRegs.GPADAT.bit.GPIO3 == 0)
 	{
-		effectsel = BYPASS;
+		// "Button 2" has been pressed
+		Button2 = true;
+		Button2_count++;
 	}
+	else if(GpioDataRegs.GPADAT.bit.GPIO4 == 0)
+	{
+		// "Button 3" has been pressed
+		Button3 = true;
+		Button3_count++;
+	}
+	else if(GpioDataRegs.GPADAT.bit.GPIO6 == 0)
+	{
+		// "Button 4" has been pressed
+		Button4 = true;
+		Button4_count++;
+	}
+
+	State_Change();
+	// *** ENTER NICKS FUNCTION *** //
 	// Acknowledge this interrupt to get more from group 1
 	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
 
-interrupt void local_XINT2_ISR(void)
+//extern bool Switch1;
+//extern bool Switch2;
+//extern bool Switch3;
+//extern bool Switch4;
+
+
+interrupt void local_XINT3_ISR(void)
 {
 
-	//Uint16 xintSel = 0;
-	//Uint16 effectsel = WAH;
-	//effect defines
-	//#define WAH 		0
-	//#define FLANGER 	1
-	//#define VOLSWELL 	2
-	//#define BYPASS 	3
-
-	if(xintSel == 0 && GpioDataRegs.GPADAT.bit.GPIO1 == 0)
-	{
-		effectsel = VOLSWELL;
-	}
-	else if(xintSel == 1 && GpioDataRegs.GPADAT.bit.GPIO3 == 0)
-	{
-		effectsel = BYPASS;
-	}
-	// Acknowledge this interrupt to get more from group 1
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+	// Stomp0 has been pressed
+	Switch1 = true;
+	// send 0x0 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
 }
-
-
-
-
-
-
-
-
-
-void init_dma()
-{
-  EALLOW;
-  DmaRegs.DMACTRL.bit.HARDRESET = 1;
-  asm("     NOP");
-
-  DmaRegs.PRIORITYCTRL1.bit.CH1PRIORITY = 0;
-
-  /* DMA Channel 1 - McBSP-A Receive */
-  DmaRegs.CH1.BURST_SIZE.all = 1;	// 2 16-bit words/burst (1 32-bit word) - memory address bumped up by 1 internally
-  DmaRegs.CH1.SRC_BURST_STEP = 1;	// DRR2 must be read first & then DRR1. Increment by 1. Hence a value of +1. (This is a 2's C #)
-  DmaRegs.CH1.DST_BURST_STEP = -1;	// Copy DRR2 data to address N+1 and DRR1 data to N. Hence -1 (32-bit read= read addr N+1 as MSB, then N as LSB)
-  DmaRegs.CH1.TRANSFER_SIZE = 0;	// transfer one burst
-
-  DmaRegs.CH1.SRC_TRANSFER_STEP = -1; // Decrement source address by 1 (from DRR1 back to DRR2) after processing a burst of data
-  DmaRegs.CH1.DST_TRANSFER_STEP = -1; // After copying 1 32-bit word of L-C data (1 burst), move down to R-C data in a given buffer
-
-  DmaRegs.CH1.SRC_ADDR_SHADOW = (Uint32) &McbspaRegs.DRR2.all;  // First read from DRR2
-  DmaRegs.CH1.SRC_BEG_ADDR_SHADOW = (Uint32) &McbspaRegs.DRR2.all;
-  DmaRegs.CH1.DST_ADDR_SHADOW = ping_buff_offset;               // First write to ping_buffer[1]
-  DmaRegs.CH1.DST_BEG_ADDR_SHADOW = ping_buff_offset;
-
-  DmaRegs.CH1.DST_WRAP_SIZE = 1;	  // After LEFT(1) and then RIGHT(2), go back to LEFT buffer
-  DmaRegs.CH1.SRC_WRAP_SIZE = 0xFFFF; // Arbitary large value. We'll never hit this.....
-  DmaRegs.CH1.DST_WRAP_STEP = 0;      // From starting address, move down 2 16-bit addresses to write nxt 32-bit word
-
-  DmaRegs.CH1.CONTROL.bit.PERINTCLR = 1;
-  DmaRegs.CH1.CONTROL.bit.SYNCCLR = 1;
-  DmaRegs.CH1.CONTROL.bit.ERRCLR = 1;
-
-  DmaRegs.CH1.MODE.bit.CHINTE = 1;          // Enable DMA channel interrupts
-  DmaRegs.CH1.MODE.bit.CHINTMODE = 1;       // Interrupt at beginning of transfer //turn back to 0
-  DmaRegs.CH1.MODE.bit.PERINTSEL = 15;		// McBSP MREVTA
-  DmaRegs.CH1.MODE.bit.CONTINUOUS = 1;      // Enable continuous mode (continuously receives)// Enable interrupts from peripheral (to trigger DMA)
-  DmaRegs.CH1.MODE.bit.PERINTE = 1;         // Enable interrupts from peripheral (to trigger DMA)
-
-
-/*
-  //DMA Channel 2 - McBSP-A Transmit
-  DmaRegs.CH2.BURST_SIZE.all = 1;	// 2 16-bit words/burst (1 32-bit word) - value bumped up by 1 internally
-  DmaRegs.CH2.SRC_BURST_STEP = -1;	// Copy data at address N+1 to DXR2 first then data at N to DXR1. Hence -1
-  DmaRegs.CH2.DST_BURST_STEP = 1;	// DXR2 must be written to first & then DXR1. Increment by 1. Hence a value of +1. (This is a 2's C #)
-  DmaRegs.CH2.TRANSFER_SIZE = 1;	// DMA Interrupt every 2 (n+1) 16-bit words. McBSP still handles 16-bit data only in registers
-
-  DmaRegs.CH2.SRC_TRANSFER_STEP = 0; // After copying 1 32-bit word L-C data, move down to R-C data in a given buffer
-  DmaRegs.CH2.DST_TRANSFER_STEP = -1;   // Decrement dest. address by 1 (DXR1 back to DXR2) after processing a burst of data
-
-  DmaRegs.CH2.SRC_ADDR_SHADOW = ping_buff_offset;               // First read from ping_buffer[1]
-  DmaRegs.CH2.SRC_BEG_ADDR_SHADOW = ping_buff_offset;
-  DmaRegs.CH2.DST_ADDR_SHADOW = (Uint32) &McbspaRegs.DXR2.all;  // First write to DXR2
-  DmaRegs.CH2.DST_BEG_ADDR_SHADOW = (Uint32) &McbspaRegs.DXR2.all;
-
-  DmaRegs.CH2.SRC_WRAP_SIZE = 0;	     // After LEFT(1) and then RIGHT(2), go back to LEFT buffer
-  DmaRegs.CH2.DST_WRAP_SIZE = 0xFFFF;  	 // Arbitary large value. We'll never hit this.....
-  DmaRegs.CH2.SRC_WRAP_STEP = 0;         // From starting address, move down 2 16-bit addresses to read next 32-bit word
-
-  DmaRegs.CH2.CONTROL.bit.PERINTCLR = 1;
-  DmaRegs.CH2.CONTROL.bit.SYNCCLR = 1;
-  DmaRegs.CH2.CONTROL.bit.ERRCLR = 1;
-
-
-  DmaRegs.CH2.MODE.bit.CHINTE = 1;          // Enable DMA channel interrupts
-  DmaRegs.CH2.MODE.bit.CHINTMODE = 1;       // Interrupt at end of transfer
-  DmaRegs.CH2.MODE.bit.PERINTSEL = 14;		// McBSP MXEVTA
-  DmaRegs.CH2.MODE.bit.CONTINUOUS = 1;      // Enable continuous mode (continuously transmits)
-  DmaRegs.CH2.MODE.bit.PERINTE = 1;         // Enable interrupts from peripheral (to trigger DMA)
-*/
-
-/*
-  //DMA Channel 3 - SCIB Receive
-  DmaRegs.CH3.BURST_SIZE.all =  0;	// 1 16-bit word/burst value bumped up by 1 internally
-  DmaRegs.CH3.SRC_BURST_STEP =  0;	// no steps because we are taking from the uart rx register
-  DmaRegs.CH2.DST_BURST_STEP = 1;	// DXR2 must be written to first & then DXR1. Increment by 1. Hence a value of +1. (This is a 2's C #)
-  DmaRegs.CH2.TRANSFER_SIZE = 1;	// DMA Interrupt every 2 (n+1) 16-bit words. McBSP still handles 16-bit data only in registers
-
-  DmaRegs.CH2.SRC_TRANSFER_STEP = 0; // After copying 1 32-bit word L-C data, move down to R-C data in a given buffer
-  DmaRegs.CH2.DST_TRANSFER_STEP = -1;   // Decrement dest. address by 1 (DXR1 back to DXR2) after processing a burst of data
-
-  DmaRegs.CH2.SRC_ADDR_SHADOW = ping_buff_offset;               // First read from ping_buffer[1]
-  DmaRegs.CH2.SRC_BEG_ADDR_SHADOW = ping_buff_offset;
-  DmaRegs.CH2.DST_ADDR_SHADOW = (Uint32) &McbspaRegs.DXR2.all;  // First write to DXR2
-  DmaRegs.CH2.DST_BEG_ADDR_SHADOW = (Uint32) &McbspaRegs.DXR2.all;
-
-  DmaRegs.CH2.SRC_WRAP_SIZE = 0;	     // After LEFT(1) and then RIGHT(2), go back to LEFT buffer
-  DmaRegs.CH2.DST_WRAP_SIZE = 0xFFFF;  	 // Arbitary large value. We'll never hit this.....
-  DmaRegs.CH2.SRC_WRAP_STEP = 0;         // From starting address, move down 2 16-bit addresses to read next 32-bit word
-
-  DmaRegs.CH2.CONTROL.bit.PERINTCLR = 1;
-  DmaRegs.CH2.CONTROL.bit.SYNCCLR = 1;
-  DmaRegs.CH2.CONTROL.bit.ERRCLR = 1;
-
-
-   DmaRegs.CH2.MODE.bit.CHINTE = 1;          // Enable DMA channel interrupts
-   DmaRegs.CH2.MODE.bit.CHINTMODE = 1;       // Interrupt at end of transfer
-   DmaRegs.CH2.MODE.bit.PERINTSEL = 14;		// McBSP MXEVTA
-   DmaRegs.CH2.MODE.bit.CONTINUOUS = 1;      // Enable continuous mode (continuously transmits)
-   DmaRegs.CH2.MODE.bit.PERINTE = 1;         // Enable interrupts from peripheral (to trigger DMA)
-*/
-
-
-
-}
-
-
-
-void init_mcbspa()
-{
-    EALLOW;
-    McbspaRegs.SPCR2.all=0x0000;		// Reset FS generator, sample rate generator & transmitter
-	McbspaRegs.SPCR1.all=0x0000;		// Reset Receiver, Right justify word
-
-    McbspaRegs.SPCR1.bit.RJUST = 2;		// left-justify word in DRR and zero-fill LSBs
-
- 	McbspaRegs.MFFINT.all=0x0;			// Disable all interrupts
-
-    McbspaRegs.SPCR1.bit.RINTM = 0;		// McBSP interrupt flag to DMA - RRDY
-	McbspaRegs.SPCR2.bit.XINTM = 0;     // McBSP interrupt flag to DMA - XRDY
-
-    McbspaRegs.RCR2.all=0x0;			// Clear Receive Control Registers
-    McbspaRegs.RCR1.all=0x0;
-
-    McbspaRegs.XCR2.all=0x0;			// Clear Transmit Control Registers
-    McbspaRegs.XCR1.all=0x0;
-
-    McbspaRegs.RCR2.bit.RWDLEN2 = 5;	// 32-BIT OPERATION
-    McbspaRegs.RCR1.bit.RWDLEN1 = 5;
-    McbspaRegs.XCR2.bit.XWDLEN2 = 5;
-    McbspaRegs.XCR1.bit.XWDLEN1 = 5;
-
-    McbspaRegs.RCR2.bit.RPHASE = 0;		// single-phase frame
-	McbspaRegs.RCR2.bit.RFRLEN2 = 0;	// Recv frame length = 1 word in phase2
-	McbspaRegs.RCR1.bit.RFRLEN1 = 0;	// Recv frame length = 1 word in phase1
-
-	McbspaRegs.XCR2.bit.XPHASE = 1;		// Dual-phase frame
-	McbspaRegs.XCR2.bit.XFRLEN2 = 0;	// Xmit frame length = 1 word in phase2
-	McbspaRegs.XCR1.bit.XFRLEN1 = 0;	// Xmit frame length = 1 word in phase1
-
-	McbspaRegs.RCR2.bit.RDATDLY = 1;	// n = n-bit data delay, in DSP mode, X/RDATDLY=0
-	McbspaRegs.XCR2.bit.XDATDLY = 1;    // DSP mode: If LRP (AIC23) = 0, X/RDATDLY=0, if LRP=1, X/RDATDLY=1
-	                                    // I2S mode: R/XDATDLY = 1 always
-
-    McbspaRegs.SRGR1.all=0x0001;		// Frame Width = 1 CLKG period, CLKGDV must be 1 as slave
-                                        // SRG clocked by LSPCLK - SRG clock MUST be at least 2x external data shift clk
-
-    McbspaRegs.PCR.all=0x0000;			// Frame sync generated externally, CLKX/CLKR driven
-    McbspaRegs.PCR.bit.FSXM = 0;		// FSX is always an i/p signal
-	McbspaRegs.PCR.bit.FSRM = 0;		// FSR is always an i/p signal
-	McbspaRegs.PCR.bit.SCLKME = 0;
-
-#if I2S_SEL                             // In I2S mode:
-    McbspaRegs.PCR.bit.FSRP = 1;		// 1-FSRP is active low (L-channel first)
-	McbspaRegs.PCR.bit.FSXP = 1 ;       // 1-FSXP is active low (L-channel first)
-#else                                   // In normal DSP McBSP mode:
-    McbspaRegs.PCR.bit.FSRP = 0;		// 0-FSRP is active high (data rx'd from rising edge)
-	McbspaRegs.PCR.bit.FSXP = 0 ;       // 0-FSXP is active high (data tx'd from rising edge)
-#endif
-
-    McbspaRegs.PCR.bit.CLKRP  = 1;		// 1-Rcvd data sampled on rising edge of CLKR
-	McbspaRegs.PCR.bit.CLKXP  = 0;      // 0- Tx data sampled on falling edge of CLKX
-	McbspaRegs.SRGR2.bit.CLKSM = 1;		// LSPCLK is clock source for SRG
-
-	McbspaRegs.PCR.bit.CLKXM = 0;		// 0-MCLKXA is an i/p driven by an external clock
-    McbspaRegs.PCR.bit.CLKRM = 0;		// MCLKRA is an i/p signal
-
-    McbspaRegs.SPCR2.all |=0x00C0;     	// Frame sync & sample rate generators pulled out of reset
-    delay_loop();
-	McbspaRegs.SPCR2.bit.XRST=1;       	// Enable Transmitter
-    McbspaRegs.SPCR1.bit.RRST=1;		// Enable Receiver
-
-    EDIS;
-}
-
-
-
-void Init_timer1(void)
-{
-	 // initialize timer1
-
-	 EALLOW;
-	 SysCtrlRegs.PCLKCR3.bit.CPUTIMER1ENCLK = 1;	// enable clock for timer peripheral (receives sysclkout)
-	 InitCpuTimers();								// initialize cpu timer
-	 // 22 is 44.1kHz
-	 //Flanger = 800
-	 //wah = 200
-	 //ConfigCpuTimer(&CpuTimer1, 150, 200);			// 150Mhz, 100uS
-	 ConfigCpuTimer(&CpuTimer1, 150, 20);			// 150Mhz, 100uS
-	 CpuTimer1.RegsAddr->TCR.bit.TSS = 0;			// start the timer
-
-}
-
-void Init_gpioUI(void){
-
-	EALLOW;
-
-
-	// set Xint1 and Xint2 to alternate between GPIO0/GPIO1 and GPIO2/GPIO3 every DMA Audio transfer
-	// xintSel == 0;  (GPIO0/GPIO1)    Xint1 -> effectsel = WAH,       		Xint2 -> effectsel = FLANGER,
-	// xintSel == 1;  (GPIO2/GPIO3)    Xint1 -> effectsel = VOLSWELL,       Xint2 -> effectsel = BYPASS,
-
-
-	// These GPIO's are assigned to buttons that make up the user interface
-	GpioCtrlRegs.GPAMUX1.bit.GPIO0 	= 0;   		// GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO0 	= 0;        // input
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO0 = 0;        // Qual using 3 samples
-	GpioCtrlRegs.GPAPUD.bit.GPIO0 	= 0;        // Enable pull-up
-
-	GpioCtrlRegs.GPAMUX1.bit.GPIO1 	= 0;        // GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO1 	= 0;        // input
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO1 = 0;        // Qual using 3 samples
-	GpioCtrlRegs.GPAPUD.bit.GPIO1 	= 0;        // Enable pull-up
-
-	GpioCtrlRegs.GPAMUX1.bit.GPIO2 	= 0;        // GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO2 	= 0;        // input
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO2 = 0;        // Qual using 3 samples
-	GpioCtrlRegs.GPAPUD.bit.GPIO2 	= 0;        // Enable pull-up
-
-	GpioCtrlRegs.GPAMUX1.bit.GPIO3 	= 0;        // GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO3 	= 0;        // input
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO3 = 0;        // Qual using 3 samples
-	GpioCtrlRegs.GPAPUD.bit.GPIO3 	= 0;        // Enable pull-up
-
-	GpioCtrlRegs.GPAMUX1.bit.GPIO4 	= 0;        // GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO4 	= 0;        // input
-	GpioCtrlRegs.GPAQSEL1.bit.GPIO4 = 1;        // Qual using 3 samples
-	GpioCtrlRegs.GPAPUD.bit.GPIO4 	= 0;        // Enable pull-up
-
-	GpioCtrlRegs.GPAMUX1.bit.GPIO6 	= 0;        // GPIO
-	GpioCtrlRegs.GPADIR.bit.GPIO6 	= 1;        // output
-	//GpioCtrlRegs.GPAQSEL1.bit.GPIO4 = 1;        // Qual using 3 samples
-	//GpioCtrlRegs.GPAPUD.bit.GPIO4 	= 0;        // Enable pull-up
-
-
-	GpioCtrlRegs.GPACTRL.bit.QUALPRD0 = 0xFF;   // Each sampling window is 510*SYSCLKOUT
-
-	GpioIntRegs.GPIOXINT1SEL.bit.GPIOSEL = 4;   // Xint1 is GPIO0
-	//GpioIntRegs.GPIOXINT2SEL.bit.GPIOSEL = 1;   // XINT2 is GPIO1
-
-	XIntruptRegs.XINT1CR.bit.POLARITY = 1;      // Falling edge interrupt
-	//XIntruptRegs.XINT2CR.bit.POLARITY = 0;      // Falling edge interrupt
-
-	// Enable XINT1 and XINT2
-	XIntruptRegs.XINT1CR.bit.ENABLE = 1;        // Enable Xint1
-	//XIntruptRegs.XINT2CR.bit.ENABLE = 1;        // Enable Xint2
-
-	EDIS;
-}
-
-// initialize the external interface
-void init_Xintf(void)
-{
-	 EALLOW;
-	 SysCtrlRegs.PCLKCR3.bit.XINTFENCLK = 1;
-	 GpioCtrlRegs.GPBMUX1.all = 0xFFFFF000;
-	 GpioCtrlRegs.GPCMUX1.all = 0xFFFFFFFF;
-	 GpioCtrlRegs.GPCMUX2.all = 0xFFFF;
-	 //GpioCtrlRegs.GPAMUX1.all  = 0x00000000;
-	 GpioCtrlRegs.GPAMUX2.all |= 0xFF000000;
-	 EDIS;
-
-}
-
-static void LCD_initSPI(void)
+interrupt void local_XINT4_ISR(void)
 {
 
-    // Step 2. Initialize GPIO:
-    // This example function is found in the DSP2833x_Gpio.c file and
-    // illustrates how to set the GPIO to it's default state.
-    // InitGpio();  // Skipped for this example
-    // Setup only the GP I/O only for SPI-A functionality
-    // This function is found in DSP2833x_Spi.c
-    EALLOW;
- /* Enable internal pull-up for the selected pins */
- // Pull-ups can be enabled or disabled by the user.
- // This will enable the pullups for the specified pins.
- // Comment out other unwanted lines.
-
- //  GpioCtrlRegs.GPAPUD.bit.GPIO16 = 0;   // Enable pull-up on GPIO16 (SPISIMOA)
- //  GpioCtrlRegs.GPAPUD.bit.GPIO17 = 0;   // Enable pull-up on GPIO17 (SPISOMIA)
- //  GpioCtrlRegs.GPAPUD.bit.GPIO18 = 0;   // Enable pull-up on GPIO18 (SPICLKA)
- //  GpioCtrlRegs.GPAPUD.bit.GPIO19 = 0;   // Enable pull-up on GPIO19 (SPISTEA)
-
-
-     GpioCtrlRegs.GPBPUD.bit.GPIO54 = 0;   // Enable pull-up on GPIO54 (SPISIMOA)
-     GpioCtrlRegs.GPBPUD.bit.GPIO55 = 0;   // Enable pull-up on GPIO55 (SPISOMIA)
-     GpioCtrlRegs.GPBPUD.bit.GPIO56 = 0;   // Enable pull-up on GPIO56 (SPICLKA)
-     GpioCtrlRegs.GPBPUD.bit.GPIO57 = 0;   // Enable pull-up on GPIO57 (SPISTEA)
-
- /* Set qualification for selected pins to asynch only */
- // This will select asynch (no qualification) for the selected pins.
- // Comment out other unwanted lines.
-
- //    GpioCtrlRegs.GPAQSEL2.bit.GPIO16 = 3; // Asynch input GPIO16 (SPISIMOA)
- //    GpioCtrlRegs.GPAQSEL2.bit.GPIO17 = 3; // Asynch input GPIO17 (SPISOMIA)
- //    GpioCtrlRegs.GPAQSEL2.bit.GPIO18 = 3; // Asynch input GPIO18 (SPICLKA)
-     //GpioCtrlRegs.GPAQSEL2.bit.GPIO19 = 3; // Asynch input GPIO19 (SPISTEA)
-
-     GpioCtrlRegs.GPBQSEL2.bit.GPIO54 = 3; // Asynch input GPIO16 (SPISIMOA)
-     GpioCtrlRegs.GPBQSEL2.bit.GPIO55 = 3; // Asynch input GPIO17 (SPISOMIA)
-     GpioCtrlRegs.GPBQSEL2.bit.GPIO56 = 3; // Asynch input GPIO18 (SPICLKA)
-     GpioCtrlRegs.GPBQSEL2.bit.GPIO57 = 3; // Asynch input GPIO19 (SPISTEA)
-
-
- /* Configure SPI-A pins using GPIO regs*/
- // This specifies which of the possible GPIO pins will be SPI functional pins.
- // Comment out other unwanted lines.
-
- //     GpioCtrlRegs.GPAMUX2.bit.GPIO16 = 1; // Configure GPIO16 as SPISIMOA
- //    GpioCtrlRegs.GPAMUX2.bit.GPIO17 = 1; // Configure GPIO17 as SPISOMIA
- //    GpioCtrlRegs.GPAMUX2.bit.GPIO18 = 1; // Configure GPIO18 as SPICLKA
-     //GpioCtrlRegs.GPAMUX2.bit.GPIO19 = 1; // Configure GPIO19 as SPISTEA
-
-     GpioCtrlRegs.GPBMUX2.bit.GPIO54 = 1; // Configure GPIO54 as SPISIMOA
-     GpioCtrlRegs.GPBMUX2.bit.GPIO55 = 1; // Configure GPIO55 as SPISOMIA
-     GpioCtrlRegs.GPBMUX2.bit.GPIO56 = 1; // Configure GPIO56 as SPICLKA
-     GpioCtrlRegs.GPBMUX2.bit.GPIO57 = 1; // Configure GPIO57 as SPISTEA
-
-     //EDIS;
-
-    //GpioCtrlRegs.GPBMUX2.bit.GPIO57 = 0; // Configure GPIO19 as GPIO
-    //GpioCtrlRegs.GPBDIR.bit.GPIO57 = 1; //Configure GPIO19 as output
-    //GpioCtrlRegs.GPBPUD.bit.GPIO57 = 1;   // Disable pull-up on GPIO19 (SPISTEA)
-    //SPI_CS_LCD_HIGH;
-
-
-    // Initialize SPI FIFO registers
-    SpiaRegs.SPIFFTX.all=0xE040;
-    SpiaRegs.SPIFFRX.all=0x204f;
-    SpiaRegs.SPIFFCT.all=0x0;
-
-    SpiaRegs.SPICCR.all =0x000F;                 // Reset on, rising edge, 16-bit char bits
-    SpiaRegs.SPICTL.all =0x0006;                 // Enable master mode, normal phase,
-                                                 // enable talk, and SPI int disabled.
-    SpiaRegs.SPIBRR =0x0003;
-    SpiaRegs.SPICCR.all =0x00D7;                 // Relinquish SPI from Reset
-    SpiaRegs.SPIPRI.bit.FREE = 1;                // Set so breakpoints don't disturb xmission
-    EDIS;
-
+	// Stomp1 has been pressed
+	Switch2 = true;
+	// send 0x1 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
 }
-
-//send a spi transfer
-void spi_xmit(Uint16 a)
+interrupt void local_XINT5_ISR(void)
 {
-    SpiaRegs.SPITXBUF=a;
+
+	// Stomp2 has been pressed
+	Switch3 = true;
+	// send 0x2 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
 }
+interrupt void local_XINT6_ISR(void)
+{
+
+	// Stomp3 has been pressed
+	Switch4 = true;
+	// send 0x3 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+}
+
 
 //initialize all structures
 void init_structs(void)
 {
 
-	/*
+
+/*
 	struct FLANG {
 		Uint16 upper_delay;
 		Uint16 lower_delay;
-		Uint16 speed;
+		float speed[10];
 		Uint16 delay;
+		Uint16 delay_range[10];
 		int16  delay_index;
 	} flang;
-	*/
+*/
 
-	flang.upper_delay = 1024;
-	flang.lower_delay = 256;
-	flang.speed = 100;    		// 100us default
-	flang.delay = (flang.upper_delay - flang.lower_delay)>>1 + flang.lower_delay;
 
+	flang.speed[0] = 1000.0;    		// 100us default
+	flang.speed[1] = 2000.0;    		// 100us default
+	flang.speed[2] = 3000.0;    		// 100us default
+	flang.speed[3] = 4000.0;    		// 100us default
+	flang.speed[4] = 5000.0;    		// 100us default
+	flang.speed[5] = 6000.0;    		// 100us default
+	flang.speed[6] = 7000.0;    		// 100us default
+	flang.speed[7] = 8000.0;    		// 100us default
+	flang.speed[8] = 9000.0;    		// 100us default
+	flang.speed[9] = 10000.0;    		// 100us default
+
+	flang.delay_range[0] = 32;
+	flang.delay_range[1] = 64;
+	flang.delay_range[2] = 128;
+	flang.delay_range[4] = 156;
+	flang.delay_range[5] = 256;
+	flang.delay_range[6] = 356;
+	flang.delay_range[7] = 412;
+	flang.delay_range[8] = 512;
+	flang.delay_range[8] = 712;
+	flang.delay 		 = 1024;
 
 /*
 	struct DELAY {
@@ -1826,14 +1451,27 @@ void init_structs(void)
 	} dig_delay;
 */
 
+	/*
+	dig_delay.upper_delay 	= 8192;
+	dig_delay.lower_delay 	= 4096;
+	dig_delay.speed 		= 1000; // 1000 uS
+	dig_delay.delay			= 6000;
+	dig_delay.delay_index 	= 0;
+	*/
+
 
 /*
 	struct TREMOLO {
-		Uint16 amplitude;
-		Uint16 period;
+		float amplitude;
+		float periodHigh;
+		float periodLow;
 	} tremolo;
 */
-
+/*
+	tremolo.amplitude 		= 1.0;
+	tremolo.periodHigh    	= 100.0;
+	tremolo.periodLow		= 50.0;
+*/
 
 /*
 	struct SVF {
@@ -1849,6 +1487,37 @@ void init_structs(void)
 	struct SVF bass_svf;
 	struct SVF treble_svf;
 */
+	wah_svf.Q[0] = 0.10; // Q = damp*2
+	wah_svf.Q[1] = 0.15;
+	wah_svf.Q[2] = 0.24;
+	wah_svf.Q[3] = 0.30; // Q = damp*2
+	wah_svf.Q[4] = 0.35;
+	wah_svf.Q[5] = 0.44;
+	wah_svf.Q[6] = 0.55;
+	wah_svf.Q[7] = 0.60;
+	wah_svf.Q[8] = 0.68;
+	wah_svf.Q[9] = 0.707;
+
+
+	wah_svf.F_range[0] = 0.1;
+	wah_svf.F_range[0] = 0.15;
+	wah_svf.F_range[0] = 0.20;
+	wah_svf.F_range[0] = 0.25;
+	wah_svf.F_range[0] = 0.30;
+	wah_svf.F_range[0] = 0.35;
+	wah_svf.F_range[0] = 0.40;
+	wah_svf.F_range[0] = 0.45;
+	wah_svf.F_range[0] = 0.50;
+
+	//upper
+	wah_svf.F = 0.085403;
+	wah_svf.Fupper = 0.21;
+	wah_svf.Flower = 0.08690;
+	wah_svf.BPF[0]=0.0;
+	wah_svf.BPF[1]=0.0;
+	wah_svf.LPF[0]=0.0;
+	wah_svf.LPF[1]=0.0;
+	wah_svf.HPF=0.0;
 
 
 
@@ -1866,32 +1535,15 @@ void init_structs(void)
 	} pitch_shift;
 */
 
-
-
-/*
-	struct EFFECT_SEL
-	{
-		Uint16 effect_selection;  // the effect that was selected (index of Effect Chain)
-	}effect_sel;
-*/
-
-
-
-/*
-	struct MENU_SEL
-	{
-		Uint16 current;
-	}menu;
-*/
-
-
-/*
-	struct EFFECT_CHAIN
-	{
-		Uint16 effect    [4];	// effect number for effect define
-		Uint32 effect_ptr[4];	// Array of pointers to effects structures
-	};
-*/
+pitch_shift.Direction 		= 0; // start out pitch shifting downwards
+pitch_shift.PerUpper  		= 120.0;
+pitch_shift.PerLower  		= 20.0;
+pitch_shift.Per				= 80.0;
+pitch_shift.count_delay1	= 0;
+pitch_shift.ext_index_delay1= 0;
+pitch_shift.ext_delay		= 0;
+pitch_shift.ext_delay_prev	= 0;
+pitch_shift.PerReset		= 0;
 
 
 /*
@@ -1901,7 +1553,19 @@ void init_structs(void)
 		   Uint16 count;
 	} sample;
 */
+for(k = 0; k < 5; k++)
+{
+sample.samp[k] 			  = 0;
+sample.index[k] 		  = 0;
+zcross_pos.cross_samp[k]  = 0;
+zcross_pos.cross_index[k] = 0;
+zcross_neg.cross_samp[k]  = 0;
+zcross_neg.cross_index[k] = 0;
+}
 
+sample.count 			= 0;
+zcross_pos.count_delay 	= 0;
+zcross_neg.count_delay  = 0;
 
 /*
 	struct ZCROSS_POS {
@@ -1921,15 +1585,7 @@ void init_structs(void)
 	} zcross_neg;
 */
 
-
-
-
 }
-
-
-
-
-
 
 //===========================================================================
 // End of file.

@@ -1,0 +1,45 @@
+; Code Composer Project File, Version 2.0 (do not modify or remove this line)
+
+[Project Settings]
+ProjectDir="C:\tidcs\c28\DSP2833x\DSP2833x_Audio_App\AIC23_project\"
+ProjectType=Executable
+CPUFamily=TMS320C28XX
+Tool="Compiler"
+Tool="CustomBuilder"
+Tool="DspBiosBuilder"
+Tool="Linker"
+Config="Debug"
+Config="Release"
+
+[Source Files]
+Source="..\DSP2833x_common\source\DSP2833x_ADC_cal.asm"
+Source="..\DSP2833x_common\source\DSP2833x_SysCtrl.c"
+Source="..\DSP2833x_common\source\DSP2833x_usDelay.asm"
+Source="..\DSP2833x_common\source\DSP2833x_CodeStartBranch.asm"
+Source="..\DSP2833x_common\source\DSP2833x_McBSP.c"
+Source="..\DSP2833x_common\source\DSP2833x_PieCtrl.c"
+Source="..\DSP2833x_headers\source\DSP2833x_GlobalVariableDefs.c"
+Source="..\AIC23_driver_source\AIC23.c"
+Source="AIC23_project.c"
+Source="AIC23_SPI_control.c"
+Source="..\DSP2833x_common\cmd\28335_RAM_lnk.cmd"
+Source="..\DSP2833x_headers\cmd\DSP2833x_Headers_nonBIOS.cmd"
+
+["Compiler" Settings: "Debug"]
+Options=-g -q -fr"$(Proj_dir)\Debug" -i"..\AIC23_driver_include" -i"$(Proj_dir)\..\DSP2833x_headers\include" -i"$(Proj_dir)\..\DSP2833x_common\include" -d"_DEBUG" -d"LARGE_MODEL" -ml -v28
+
+["Compiler" Settings: "Release"]
+Options=-q -o3 -fr"$(Proj_dir)\Release" -d"LARGE_MODEL" -ml -v28
+
+["DspBiosBuilder" Settings: "Debug"]
+Options=-v28
+
+["DspBiosBuilder" Settings: "Release"]
+Options=-v28
+
+["Linker" Settings: "Debug"]
+Options=-q -c -m".\Debug\AIC23_project.map" -o".\Debug\AIC23_project.out" -x -l"rts2800_ml.lib"
+
+["Linker" Settings: "Release"]
+Options=-q -c -m".\Release\AIC23_project.map" -o".\Release\AIC23_project.out" -x
+

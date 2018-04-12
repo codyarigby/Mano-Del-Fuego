@@ -17,6 +17,7 @@ ORDERED_OBJS += \
 "./main.obj" \
 "./common/AIC23.obj" \
 "./common/AIC23_SPI_control.obj" \
+"./common/DSP2833x_CSMPasswords.obj" \
 "./common/DSP2833x_CodeStartBranch.obj" \
 "./common/DSP2833x_CpuTimers.obj" \
 "./common/DSP2833x_DefaultIsr.obj" \
@@ -26,8 +27,8 @@ ORDERED_OBJS += \
 "./common/DSP2833x_SysCtrl.obj" \
 "./common/DSP2833x_usDelay.obj" \
 "./headers/DSP2833x_GlobalVariableDefs.obj" \
-"../28335_RAM_lnk.cmd" \
-"../headers/DSP2833x_Headers_nonBIOS.cmd" \
+"C:/ti/controlSUITE/device_support/f2833x/v141/DSP2833x_headers/cmd/DSP2833x_Headers_nonBIOS.cmd" \
+"../F28335.cmd" \
 $(GEN_CMDS__FLAG) \
 -llibc.a \
 
@@ -159,7 +160,7 @@ all: SENIOR_Codec_app.out
 SENIOR_Codec_app.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: C2000 Linker'
-	"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 -g --display_error_number --diag_warning=225 --diag_wrap=off -z -m"SENIOR_Codec_app.map" --stack_size=0x300 --warn_sections -i"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/lib" -i"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="SENIOR_Codec_app_linkInfo.xml" --rom_model -o "SENIOR_Codec_app.out" $(ORDERED_OBJS)
+	"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 -g --display_error_number --diag_warning=225 --diag_wrap=off -z -m"SENIOR_Codec_app.map" --stack_size=0x300 --warn_sections -i"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/lib" -i"C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="SENIOR_Codec_app_linkInfo.xml" --entry_point=code_start --rom_model -o "SENIOR_Codec_app.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -173,8 +174,8 @@ SENIOR_Codec_app.hex: $(EXE_OUTPUTS)
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)$(BIN_OUTPUTS__QUOTED)
 	-$(RM) "AsciiLib.d" "LCD.d" "MDF_init.d" "UI.d" "main.d" "common\AIC23.d" "common\AIC23_SPI_control.d" "common\DSP2833x_CpuTimers.d" "common\DSP2833x_DefaultIsr.d" "common\DSP2833x_Mcbsp.d" "common\DSP2833x_PieCtrl.d" "common\DSP2833x_SysCtrl.d" "headers\DSP2833x_GlobalVariableDefs.d" 
-	-$(RM) "AsciiLib.obj" "LCD.obj" "MDF_init.obj" "UI.obj" "main.obj" "common\AIC23.obj" "common\AIC23_SPI_control.obj" "common\DSP2833x_CodeStartBranch.obj" "common\DSP2833x_CpuTimers.obj" "common\DSP2833x_DefaultIsr.obj" "common\DSP2833x_DisInt.obj" "common\DSP2833x_Mcbsp.obj" "common\DSP2833x_PieCtrl.obj" "common\DSP2833x_SysCtrl.obj" "common\DSP2833x_usDelay.obj" "headers\DSP2833x_GlobalVariableDefs.obj" 
-	-$(RM) "common\DSP2833x_CodeStartBranch.d" "common\DSP2833x_DisInt.d" "common\DSP2833x_usDelay.d" 
+	-$(RM) "AsciiLib.obj" "LCD.obj" "MDF_init.obj" "UI.obj" "main.obj" "common\AIC23.obj" "common\AIC23_SPI_control.obj" "common\DSP2833x_CSMPasswords.obj" "common\DSP2833x_CodeStartBranch.obj" "common\DSP2833x_CpuTimers.obj" "common\DSP2833x_DefaultIsr.obj" "common\DSP2833x_DisInt.obj" "common\DSP2833x_Mcbsp.obj" "common\DSP2833x_PieCtrl.obj" "common\DSP2833x_SysCtrl.obj" "common\DSP2833x_usDelay.obj" "headers\DSP2833x_GlobalVariableDefs.obj" 
+	-$(RM) "common\DSP2833x_CSMPasswords.d" "common\DSP2833x_CodeStartBranch.d" "common\DSP2833x_DisInt.d" "common\DSP2833x_usDelay.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 

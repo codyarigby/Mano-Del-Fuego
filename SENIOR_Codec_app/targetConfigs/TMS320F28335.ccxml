@@ -6,6 +6,12 @@
             <instance XML_version="1.2" href="drivers/tixds100v2c28x.xml" id="drivers" xml="tixds100v2c28x.xml" xmlpath="drivers"/>
             <platform XML_version="1.2" id="platform_0">
                 <instance XML_version="1.2" desc="TMS320F28335_0" href="devices/f28335.xml" id="TMS320F28335_0" xml="f28335.xml" xmlpath="devices"/>
+            <device HW_revision="1" XML_version="1.2" description="" id="TMS320F28335_0" partnum="TMS320F28335" simulation="no">
+                    <cpu HW_revision="1.0" XML_version="1.2" description="CPU" deviceSim="false" id="C2800" isa="TMS320C28XX">
+                        <property Type="choicelist" Value="0" id="bypass"/>
+                    <property Type="filepathfield" Value="..\..\..\..\controlSUITE\device_support\f2833x\v141\DSP2833x_common\gel\ccsv4\f28335.gel" id="GEL File"/>
+                    </cpu>
+                </device>
             </platform>
         </connection>
     </configuration>

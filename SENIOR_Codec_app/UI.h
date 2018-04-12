@@ -121,6 +121,8 @@ extern bool Switch4;
 
 extern bool state_change_flag;
 
+extern bool rx_flag;
+
 
 
 

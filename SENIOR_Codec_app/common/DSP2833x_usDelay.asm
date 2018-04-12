@@ -57,6 +57,7 @@
 
        .def _DSP28x_usDelay
        .sect "ramfuncs"
+       ;sect "text"
 
         .global  __DSP28x_usDelay
 _DSP28x_usDelay:

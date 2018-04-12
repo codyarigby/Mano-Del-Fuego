@@ -1,4 +1,4 @@
-// TI File $Revision:  $
+   // TI File $Revision:  $
 // Checkin $Date:  $
 //###########################################################################
 //
@@ -122,6 +122,7 @@
 #include "DSP2833x_Device.h"     // DSP2833x Headerfile Include File
 #include "MDF_init.h"
 #include "UI.h"
+#include <string.h>
 
 
 
@@ -129,6 +130,9 @@
 extern void init_mcbsp_spi();
 extern void mcbsp_xmit (int a);
 extern void aic23_init(int mic, int i2s_mode);
+
+void mano_del_fuego(void);
+void init_structs(void);
 
 // *** Interrupt Definitions *** //
 interrupt void local_D_INTCH1_ISR(void); 	// Channel 1 Rx ISR
@@ -300,6 +304,47 @@ static float hanning[1024] = { 0.00000000, 0.00000340, 0.00001358, 0.00003056, 0
 #pragma DATA_SECTION(bass_svf, "EFFECTRAM6");
 #pragma DATA_SECTION(treble_svf, "EFFECTRAM6");
 
+/*
+interrupt void local_D_INTCH1_ISR(void); 	// Channel 1 Rx ISR
+interrupt void local_D_INTCH2_ISR(void); 	// Channel 2 Tx ISR
+interrupt void local_SCIRXINTB_ISR(void);   // Scib Rx ISR aleady defined in pie.h
+interrupt void local_timer_ISR(void);		// timer isr
+interrupt void local_XINT1_ISR(void);
+interrupt void local_XINT3_ISR(void);
+interrupt void local_XINT4_ISR(void);
+interrupt void local_XINT5_ISR(void);
+interrupt void local_XINT6_ISR(void);
+*/
+
+
+#pragma CODE_SECTION(local_D_INTCH1_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_D_INTCH2_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_SCIRXINTB_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_timer_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_XINT1_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_XINT3_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_XINT4_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_XINT5_ISR, "ramfuncs");
+#pragma CODE_SECTION(local_XINT6_ISR, "ramfuncs");
+#pragma CODE_SECTION(mano_del_fuego, "ramfuncs");
+#pragma CODE_SECTION(init_structs, "ramfuncs");
+
+
+
+// *** These are defined by the linker (see F28335.cmd) *** //
+extern Uint16 RamfuncsLoadStart;
+extern Uint16 RamfuncsLoadEnd;
+extern Uint16 RamfuncsRunStart;
+extern Uint16 RamfuncsLoadSize;
+
+
+
+
+
+//extern void Init_gpioUI(void);
+//#pragma CODE_SECTION(Init_gpioUI, "DMARAML7");
+
+
 
 int16 ext_Buffer[32767];
 Uint16 ext_Buffer_size = 32767; // and these pointers with 0x7FFF
@@ -470,6 +515,7 @@ Uint16 ButtonDown_count = 0;
 
 
 
+
 // *******************************************************************************************************
 // 							State Variable Filter Variables
 // *******************************************************************************************************
@@ -513,10 +559,17 @@ Uint16 p1					= 0;
 Uint16 p2					= 0;
 
 void main(void)
+
 {
 
-      InitSysCtrl();
+   //InitSysCtrl();
+   memcpy(&RamfuncsRunStart, &RamfuncsLoadStart, (Uint32)&RamfuncsLoadSize);
 
+   // Call Flash Initialization to setup flash waitstates
+   // This function must reside in RAM
+   InitFlash();
+   InitSysCtrl();
+   InitFlash();
 
 
    EALLOW;
@@ -524,7 +577,7 @@ void main(void)
    // Initalize GPIO:
    // For this example, enable the GPIO PINS for McBSP operation.
    InitMcbspGpio();
-   //init_uart();
+
    init_Xintf();
 
    // Fill the buffers with dummy data
@@ -609,6 +662,7 @@ void main(void)
 // 							Initialize the Bluetooth Module
 // *******************************************************************************************************
 /*
+init_uart();
 scib_xmit('$');
 DELAY_US(10000L);
 scib_xmit('$');
@@ -616,8 +670,10 @@ DELAY_US(10000L);
 scib_xmit('$');
 DELAY_US(10000L);
 */
-init_uart();
+
+
 // set to fast data mode
+init_uart();
 for(ii = 0; ii < 4; ii++)
 {
 	scib_xmit(fastDataMode[ii]);
@@ -648,6 +704,7 @@ IER |= PIEACK_GROUP7;					    // Enable  INT7
 IER |= PIEACK_GROUP9;						// Enable  INT9
 EINT;      					        		// Global enable of interrupts
 
+rx_flag = false;
 Initialize_Board();
 
 //CpuTimer1.RegsAddr->TCR.bit.TSS = 0; // start the timer
@@ -672,8 +729,451 @@ imu_dat.Xaccel_real = 0.0;
 imu_dat.Xaccel_real_prev = 0.0;
 
   	while(1) {
+	// Code loops here all the time
+  	mano_del_fuego();
+}
+}
 
-  		if(state_change_flag)
+//===========================================================================
+// End of main()
+//===========================================================================
+
+
+interrupt void local_timer_ISR()
+{
+
+
+  //if(t1_flag == 1){
+  //  t1_flag=1;
+  //}
+  //if(t1_flag==0){
+  //  t1_flag=1;
+  //}
+  t1_flag = 1;						// set the flag for timer processing
+  CpuTimer1Regs.TCR.bit.TIF = 1;	// acknowledge interrupt
+  CpuTimer1Regs.TCR.bit.TSS = 0;	//
+}
+
+
+
+
+
+
+interrupt void local_SCIRXINTB_ISR(void) // SCI-B
+{
+
+	EALLOW;
+	if(ScibRegs.SCIRXBUF.all == 0x0A && uart_step == 0)
+	{
+		uart_step++;
+		//uart_i++;
+	}
+	else if(uart_step == 1)
+	{
+		scib_rx = ((ScibRegs.SCIRXBUF.all << 8) & 0xFF00);
+		if((scib_rx & 0xFF00) == 0x0A00)
+		{
+			uart_step = 0;
+		}
+		else
+		{
+			uart_step++;
+		}
+	}
+	else if(uart_step == 2)
+	{
+		scib_rx |= ScibRegs.SCIRXBUF.all;
+
+		// if we were just getting accel data, uncomment the next two lines
+		//uart_step = 0;
+		//d_flag = 1;
+
+		uart_step++;
+	}
+	else if(uart_step == 3)
+	{
+		scib_gyro = ((ScibRegs.SCIRXBUF.all << 8) & 0xFF00);
+		if((scib_gyro & 0xFF00) == 0x0A00)
+		{
+			uart_step = 0;
+		}
+		else
+		{
+			uart_step++;
+		}
+	}
+	else if(uart_step == 4)
+	{
+		scib_gyro |= ScibRegs.SCIRXBUF.all;
+		uart_step = 0;
+		d_flag = 1;
+
+	}
+	else
+	{
+		uart_step = 0;
+	}
+
+	//Uint16 activateEffect = 0;
+	//Uint16 activateCounter = 0;
+	//Uint16 deactivateCounter = 0;
+	rx_flag = true;
+	PieCtrlRegs.PIEACK.all |= PIEACK_GROUP9;       // Issue PIE ack
+}
+
+
+
+
+// INT7.1 -
+interrupt void local_D_INTCH1_ISR(void)		// DMA Ch1 - McBSP-A Rx
+{
+    EALLOW;
+
+    //if(first_interrupt==1) // No processing needs to be done (B/c interrupt occurs
+	//{                      // at beginning of DMA transfers to ping buffer - no data received yet)
+	//    first_interrupt=0; // Turn flag off and exit interrupt
+	//} else
+	//{
+	// Do whatever processing is needed on the buffered data  outside of the ISR
+  	// Once that is done, switch to the other buffer
+	// DmaRegs.CH2.CONTROL.bit.RUN = 1; // Start tx on CH2 after CH1 has finished ping buffer
+	// dont start dma channel 2
+	//}
+
+    // this is to check if the DMA makes a transfer during the audio processing
+    if(r_flag1)
+    {
+    	r_flag1 = 1;
+    }
+
+    //	When DMA first starts working on ping buffer, set the shadow registers
+    //	to start at pong buffer next time and vice versa
+    if(DmaRegs.CH1.DST_ADDR_SHADOW == ping_buff_offset)
+	{
+		DmaRegs.CH1.DST_ADDR_SHADOW = pong_buff_offset;
+  		DmaRegs.CH1.DST_BEG_ADDR_SHADOW = pong_buff_offset;
+  		ch1_ptr = ping_buff_offset; // set channel pointer to the previous ping/pong buffer because that is where the data was just recorded
+	}
+	else
+	{
+		DmaRegs.CH1.DST_ADDR_SHADOW = ping_buff_offset;
+  		DmaRegs.CH1.DST_BEG_ADDR_SHADOW = ping_buff_offset;
+  		ch1_ptr = pong_buff_offset; // set channel pointer to the previous ping/pong buffer because that is where the data was just recorded
+	}
+    // To receive more interrupts from this PIE group, acknowledge this interrupt
+    r_flag1 = 1;
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP7;
+    EDIS;
+}
+
+
+
+interrupt void local_XINT1_ISR(void)
+{
+	/*
+	bool Button1 = false;
+	bool Button2 = false;
+	bool Button3 = false;
+	bool Button4 = false;
+	bool ButtonUp = false;
+	bool ButtonDown = false;
+	*/
+
+	/*
+	Uint16 Xint_count   	= 0;
+	Uint16 Button1_count 	= 0;
+	Uint16 Button2_count 	= 0;
+	Uint16 Button3_count 	= 0;
+	Uint16 Button4_count 	= 0;
+	Uint16 ButtonUp_count	= 0;
+	Uint16 ButtonDown_count = 0;
+	*/
+
+	Xint_count++;
+	if(GpioDataRegs.GPADAT.bit.GPIO0 == 0)
+	{
+		// "Button Up" has been pressed
+		ButtonUp = true;
+		ButtonUp_count++;
+	}
+	if(GpioDataRegs.GPADAT.bit.GPIO1 == 0)
+	{
+		// "Button Down" has been pressed
+		ButtonDown = true;
+		ButtonDown_count++;
+	}
+	if(GpioDataRegs.GPADAT.bit.GPIO2 == 0)
+	{
+		// "Button 1" has been pressed
+		Button1 = true;
+		Button1_count++;
+
+	}
+	if(GpioDataRegs.GPADAT.bit.GPIO3 == 0)
+	{
+		// "Button 2" has been pressed
+		Button2 = true;
+		Button2_count++;
+	}
+	if(GpioDataRegs.GPADAT.bit.GPIO4 == 0)
+	{
+		// "Button 3" has been pressed
+		Button3 = true;
+		Button3_count++;
+	}
+	if(GpioDataRegs.GPADAT.bit.GPIO6 == 0)
+	{
+		// "Button 4" has been pressed
+		Button4 = true;
+		Button4_count++;
+	}
+
+	State_Change();
+	// *** ENTER NICKS FUNCTION *** //
+	// Acknowledge this interrupt to get more from group 1
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+//extern bool Switch1;
+//extern bool Switch2;
+//extern bool Switch3;
+//extern bool Switch4;
+
+
+interrupt void local_XINT3_ISR(void)
+{
+
+	// Stomp0 has been pressed
+	Switch1 = true;
+	// send 0x0 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+}
+interrupt void local_XINT4_ISR(void)
+{
+
+	// Stomp1 has been pressed
+	Switch2 = true;
+	// send 0x1 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+}
+interrupt void local_XINT5_ISR(void)
+{
+
+	// Stomp2 has been pressed
+	Switch3 = true;
+	// send 0x2 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+}
+interrupt void local_XINT6_ISR(void)
+{
+
+	// Stomp3 has been pressed
+	Switch4 = true;
+	// send 0x3 to the decoder
+	State_Change();
+	// Acknowledge this interrupt to get more from group 12
+	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
+}
+
+
+//initialize all structures
+void init_structs(void)
+{
+
+
+/*
+	struct FLANG {
+		Uint16 upper_delay;
+		Uint16 lower_delay;
+		float speed[10];
+		Uint16 delay;
+		Uint16 delay_range[10];
+		int16  delay_index;
+	} flang;
+*/
+
+
+	flang.speed[0] = 500.0;    		// 100us default
+	flang.speed[1] = 750.0;    		// 100us default
+	flang.speed[2] = 1000.0;    		// 100us default
+	flang.speed[3] = 1200.0;    		// 100us default
+	flang.speed[4] = 1300.0;    		// 100us default
+	flang.speed[5] = 1500.0;    		// 100us default
+	flang.speed[6] = 1800.0;    		// 100us default
+	flang.speed[7] = 2000.0;    		// 100us default
+	flang.speed[8] = 3000.0;    		// 100us default
+	flang.speed[9] = 4000.0;    		// 100us default
+
+	flang.delay_range[0] = 32;
+	flang.delay_range[1] = 64;
+	flang.delay_range[2] = 128;
+	flang.delay_range[4] = 156;
+	flang.delay_range[5] = 256;
+	flang.delay_range[6] = 356;
+	flang.delay_range[7] = 412;
+	flang.delay_range[8] = 512;
+	flang.delay_range[8] = 712;
+	flang.delay 		 = 1024;
+
+/*
+	struct DELAY {
+		Uint16 upper_delay;
+		Uint16 lower_delay;
+		Uint16 speed;
+		Uint16 delay;
+		int16  delay_index;
+	} dig_delay;
+*/
+
+	/*
+	dig_delay.upper_delay 	= 8192;
+	dig_delay.lower_delay 	= 4096;
+	dig_delay.speed 		= 1000; // 1000 uS
+	dig_delay.delay			= 6000;
+	dig_delay.delay_index 	= 0;
+	*/
+
+
+/*
+	struct TREMOLO {
+		float amplitude;
+		float periodHigh;
+		float periodLow;
+	} tremolo;
+*/
+/*
+	tremolo.amplitude 		= 1.0;
+	tremolo.periodHigh    	= 100.0;
+	tremolo.periodLow		= 50.0;
+*/
+
+/*
+	struct SVF {
+	   float Fupper;		// upper boundary of F
+	   float Flower;        // lower boundary of F
+	   float F;				// Tuning Coefficient  F1 = 2sin(pi*fc/fs)
+	   float Q;				// Tuning Coefficient  Q1 = 2sigma
+	   float  HPF;
+	   float  BPF[2];
+	   float  LPF[2];
+	};
+	struct SVF wah_svf;
+	struct SVF bass_svf;
+	struct SVF treble_svf;
+*/
+	wah_svf.Q[0] = 0.05; // Q = damp*2
+	wah_svf.Q[1] = 0.10;
+	wah_svf.Q[2] = 0.12;
+	wah_svf.Q[3] = 0.15; // Q = damp*2
+	wah_svf.Q[4] = 0.17;
+	wah_svf.Q[5] = 0.20;
+	wah_svf.Q[6] = 0.22;
+	wah_svf.Q[7] = 0.24;
+	wah_svf.Q[8] = 0.30;
+	wah_svf.Q[9] = 0.40;
+
+
+	wah_svf.F_range[0] = 0.1;
+	wah_svf.F_range[0] = 0.15;
+	wah_svf.F_range[0] = 0.20;
+	wah_svf.F_range[0] = 0.25;
+	wah_svf.F_range[0] = 0.30;
+	wah_svf.F_range[0] = 0.35;
+	wah_svf.F_range[0] = 0.40;
+	wah_svf.F_range[0] = 0.45;
+	wah_svf.F_range[0] = 0.50;
+
+	//upper
+	wah_svf.F = 0.085403;
+	wah_svf.Fupper = 0.21;
+	wah_svf.Flower = 0.08690;
+	wah_svf.BPF[0]=0.0;
+	wah_svf.BPF[1]=0.0;
+	wah_svf.LPF[0]=0.0;
+	wah_svf.LPF[1]=0.0;
+	wah_svf.HPF=0.0;
+
+
+
+/*
+	struct PITCH_SHIFT{
+		Uint16 Direction;
+		float PerUpper;
+		float PerLower;
+		float Per;
+		Uint16 count_delay1;
+		Uint16 ext_index_delay1;
+		int16 ext_delay;
+		int16 ext_delay_prev;
+		Uint16 PerReset;
+	} pitch_shift;
+*/
+
+pitch_shift.Direction 		= 0; // start out pitch shifting downwards
+pitch_shift.PerUpper  		= 230.0;
+pitch_shift.PerLower  		= 10.0;
+pitch_shift.Per				= 200.0;
+pitch_shift.count_delay1	= 0;
+pitch_shift.ext_index_delay1= 0;
+pitch_shift.ext_delay		= 0;
+pitch_shift.ext_delay_prev	= 0;
+pitch_shift.PerReset		= 0;
+
+
+/*
+	struct SAMPLE {
+		   int16 samp[5];
+		   Uint16 index[5];
+		   Uint16 count;
+	} sample;
+*/
+for(k = 0; k < 5; k++)
+{
+sample.samp[k] 			  = 0;
+sample.index[k] 		  = 0;
+zcross_pos.cross_samp[k]  = 0;
+zcross_pos.cross_index[k] = 0;
+zcross_neg.cross_samp[k]  = 0;
+zcross_neg.cross_index[k] = 0;
+}
+
+sample.count 			= 0;
+zcross_pos.count_delay 	= 0;
+zcross_neg.count_delay  = 0;
+
+/*
+	struct ZCROSS_POS {
+	   int16   cross_samp[5];
+	   Uint16  cross_index[5];
+	   Uint16  count_delay;
+	} zcross_pos;
+*/
+
+
+
+/*
+	struct ZCROSS_NEG{
+		   int16   cross_samp[5];
+		   Uint16  cross_index[5];
+		   Uint16  count_delay;
+	} zcross_neg;
+*/
+
+}
+
+
+// ****************************** //
+// *** THIS IS MANO DEL FUEGO *** //
+// ****************************** //
+void mano_del_fuego(void)
+{
+if(state_change_flag)
   		{
   			state_change_flag = false;
   			effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
@@ -709,46 +1209,47 @@ imu_dat.Xaccel_real_prev = 0.0;
 			{
   				effectsel = (effectsel+1) & 0x0003;
 			}
+			*/
   			//logic that handles activating an effect
 			if((scib_rx & 0x0001) && activateEffect == 0)
+			{
+				activateCounter++;
+				if(activateCounter > 6)
 				{
-					activateCounter++;
-					if(activateCounter > 6)
-					{
-						activateEffect = 1;
-						activateCounter = 0;
-					}
+					activateEffect = 1;
+					activateCounter = 0;
 				}
-				else
+			}
+			else
+			{
+				if(activateCounter > 0)
 				{
-					if(activateCounter > 0)
-					{
-					activateCounter--;
-					}
-					else{
-						activateCounter = 0;
-					}
+				activateCounter--;
 				}
-				if(!(scib_rx & 0x0001) && activateEffect == 1)
+				else{
+					activateCounter = 0;
+				}
+			}
+			if(!(scib_rx & 0x0001) && activateEffect == 1)
+			{
+				deactivateCounter++;
+				if(deactivateCounter > 6)
 				{
-					deactivateCounter++;
-					if(deactivateCounter > 6)
-					{
-						activateEffect = 0;
-						deactivateCounter = 0;
-					}
+					activateEffect = 0;
+					deactivateCounter = 0;
 				}
-				else
+			}
+			else
+			{
+				if(deactivateCounter > 0)
 				{
-					if(deactivateCounter > 0)
-					{
-					deactivateCounter--;
-					}
-					else{
-						deactivateCounter = 0;
-					}
+				deactivateCounter--;
 				}
-				*/
+				else{
+					deactivateCounter = 0;
+				}
+			}
+
 
   			if(effectsel == WAH)
   			{
@@ -759,7 +1260,7 @@ imu_dat.Xaccel_real_prev = 0.0;
 					//wah_svf.F += 0.0050;
 					//imu_dat.Xaccel_real_prev = imu_dat.Xaccel_real;
 					//imu_dat.Xaccel_real = imu_dat.Xaccel_real + (float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev;  //*0.0000305185;
-					wah_svf.F += (wah_svf.Fupper)*((float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev)*0.0000305185*0.3;
+					wah_svf.F += (wah_svf.Fupper)*((float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev)*0.0000305185*0.45;
 					if(wah_svf.F > wah_svf.Fupper)
 					{
 						wah_svf.F = wah_svf.Fupper;
@@ -810,8 +1311,12 @@ imu_dat.Xaccel_real_prev = 0.0;
 
   			else if(effectsel == VOLSWELL)
   			{
+
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
-  				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.04;
+  				if(activateEffect == 1)
+  				{
+  				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
+  				}
   				if(gyro_vol < 0.0)
   				{
   					gyro_vol = 0;
@@ -825,7 +1330,10 @@ imu_dat.Xaccel_real_prev = 0.0;
   			{
   				if(imu_dat.Xgyro < 250 | imu_dat.Xgyro > 250)
 				{
-  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.04;
+  					if(activateEffect == 1)
+  					{
+  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.09;
+  					}
   					if(imu_dat.Xg_pos < 0.0)
 					{
   						imu_dat.Xg_pos = 0;
@@ -1153,439 +1661,12 @@ imu_dat.Xaccel_real_prev = 0.0;
   		}
 
 
-  	}						// Code loops here all the time
-}
-
-//===========================================================================
-// End of main()
-//===========================================================================
-
-
-interrupt void local_timer_ISR()
-{
-
-
-  //if(t1_flag == 1){
-  //  t1_flag=1;
-  //}
-  //if(t1_flag==0){
-  //  t1_flag=1;
-  //}
-  t1_flag = 1;						// set the flag for timer processing
-  CpuTimer1Regs.TCR.bit.TIF = 1;	// acknowledge interrupt
-  CpuTimer1Regs.TCR.bit.TSS = 0;	//
-}
+  	}
 
 
 
 
 
-
-interrupt void local_SCIRXINTB_ISR(void) // SCI-B
-{
-	EALLOW;
-	if(ScibRegs.SCIRXBUF.all == 0x0A && uart_step == 0)
-	{
-		uart_step++;
-		//uart_i++;
-	}
-	else if(uart_step == 1)
-	{
-		scib_rx = ((ScibRegs.SCIRXBUF.all << 8) & 0xFF00);
-		if((scib_rx & 0xFF00) == 0x0A00)
-		{
-			uart_step = 0;
-		}
-		else
-		{
-			uart_step++;
-		}
-	}
-	else if(uart_step == 2)
-	{
-		scib_rx |= ScibRegs.SCIRXBUF.all;
-
-		// if we were just getting accel data, uncomment the next two lines
-		//uart_step = 0;
-		//d_flag = 1;
-
-		uart_step++;
-	}
-	else if(uart_step == 3)
-	{
-		scib_gyro = ((ScibRegs.SCIRXBUF.all << 8) & 0xFF00);
-		if((scib_gyro & 0xFF00) == 0x0A00)
-		{
-			uart_step = 0;
-		}
-		else
-		{
-			uart_step++;
-		}
-	}
-	else if(uart_step == 4)
-	{
-		scib_gyro |= ScibRegs.SCIRXBUF.all;
-		uart_step = 0;
-		d_flag = 1;
-
-	}
-	else
-	{
-		uart_step = 0;
-	}
-
-	//Uint16 activateEffect = 0;
-	//Uint16 activateCounter = 0;
-	//Uint16 deactivateCounter = 0;
-	PieCtrlRegs.PIEACK.all |= PIEACK_GROUP9;       // Issue PIE ack
-}
-
-
-
-
-// INT7.1 -
-interrupt void local_D_INTCH1_ISR(void)		// DMA Ch1 - McBSP-A Rx
-{
-    EALLOW;
-
-    //if(first_interrupt==1) // No processing needs to be done (B/c interrupt occurs
-	//{                      // at beginning of DMA transfers to ping buffer - no data received yet)
-	//    first_interrupt=0; // Turn flag off and exit interrupt
-	//} else
-	//{
-	// Do whatever processing is needed on the buffered data  outside of the ISR
-  	// Once that is done, switch to the other buffer
-	// DmaRegs.CH2.CONTROL.bit.RUN = 1; // Start tx on CH2 after CH1 has finished ping buffer
-	// dont start dma channel 2
-	//}
-
-    // this is to check if the DMA makes a transfer during the audio processing
-    if(r_flag1)
-    {
-    	r_flag1 = 1;
-    }
-
-    //	When DMA first starts working on ping buffer, set the shadow registers
-    //	to start at pong buffer next time and vice versa
-    if(DmaRegs.CH1.DST_ADDR_SHADOW == ping_buff_offset)
-	{
-		DmaRegs.CH1.DST_ADDR_SHADOW = pong_buff_offset;
-  		DmaRegs.CH1.DST_BEG_ADDR_SHADOW = pong_buff_offset;
-  		ch1_ptr = ping_buff_offset; // set channel pointer to the previous ping/pong buffer because that is where the data was just recorded
-	}
-	else
-	{
-		DmaRegs.CH1.DST_ADDR_SHADOW = ping_buff_offset;
-  		DmaRegs.CH1.DST_BEG_ADDR_SHADOW = ping_buff_offset;
-  		ch1_ptr = pong_buff_offset; // set channel pointer to the previous ping/pong buffer because that is where the data was just recorded
-	}
-    // To receive more interrupts from this PIE group, acknowledge this interrupt
-    r_flag1 = 1;
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP7;
-    EDIS;
-}
-
-
-
-interrupt void local_XINT1_ISR(void)
-{
-	/*
-	bool Button1 = false;
-	bool Button2 = false;
-	bool Button3 = false;
-	bool Button4 = false;
-	bool ButtonUp = false;
-	bool ButtonDown = false;
-	*/
-
-	/*
-	Uint16 Xint_count   	= 0;
-	Uint16 Button1_count 	= 0;
-	Uint16 Button2_count 	= 0;
-	Uint16 Button3_count 	= 0;
-	Uint16 Button4_count 	= 0;
-	Uint16 ButtonUp_count	= 0;
-	Uint16 ButtonDown_count = 0;
-	*/
-
-	Xint_count++;
-	if(GpioDataRegs.GPADAT.bit.GPIO0 == 0)
-	{
-		// "Button Up" has been pressed
-		ButtonUp = true;
-		ButtonUp_count++;
-	}
-	else if(GpioDataRegs.GPADAT.bit.GPIO1 == 0)
-	{
-		// "Button Down" has been pressed
-		ButtonDown = true;
-		ButtonDown_count++;
-	}
-	else if(GpioDataRegs.GPADAT.bit.GPIO2 == 0)
-	{
-		// "Button 1" has been pressed
-		Button1 = true;
-		Button1_count++;
-
-	}
-	else if(GpioDataRegs.GPADAT.bit.GPIO3 == 0)
-	{
-		// "Button 2" has been pressed
-		Button2 = true;
-		Button2_count++;
-	}
-	else if(GpioDataRegs.GPADAT.bit.GPIO4 == 0)
-	{
-		// "Button 3" has been pressed
-		Button3 = true;
-		Button3_count++;
-	}
-	else if(GpioDataRegs.GPADAT.bit.GPIO6 == 0)
-	{
-		// "Button 4" has been pressed
-		Button4 = true;
-		Button4_count++;
-	}
-
-	State_Change();
-	// *** ENTER NICKS FUNCTION *** //
-	// Acknowledge this interrupt to get more from group 1
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
-}
-
-//extern bool Switch1;
-//extern bool Switch2;
-//extern bool Switch3;
-//extern bool Switch4;
-
-
-interrupt void local_XINT3_ISR(void)
-{
-
-	// Stomp0 has been pressed
-	Switch1 = true;
-	// send 0x0 to the decoder
-	State_Change();
-	// Acknowledge this interrupt to get more from group 12
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-}
-interrupt void local_XINT4_ISR(void)
-{
-
-	// Stomp1 has been pressed
-	Switch2 = true;
-	// send 0x1 to the decoder
-	State_Change();
-	// Acknowledge this interrupt to get more from group 12
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-}
-interrupt void local_XINT5_ISR(void)
-{
-
-	// Stomp2 has been pressed
-	Switch3 = true;
-	// send 0x2 to the decoder
-	State_Change();
-	// Acknowledge this interrupt to get more from group 12
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-}
-interrupt void local_XINT6_ISR(void)
-{
-
-	// Stomp3 has been pressed
-	Switch4 = true;
-	// send 0x3 to the decoder
-	State_Change();
-	// Acknowledge this interrupt to get more from group 12
-	PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-}
-
-
-//initialize all structures
-void init_structs(void)
-{
-
-
-/*
-	struct FLANG {
-		Uint16 upper_delay;
-		Uint16 lower_delay;
-		float speed[10];
-		Uint16 delay;
-		Uint16 delay_range[10];
-		int16  delay_index;
-	} flang;
-*/
-
-
-	flang.speed[0] = 1000.0;    		// 100us default
-	flang.speed[1] = 2000.0;    		// 100us default
-	flang.speed[2] = 3000.0;    		// 100us default
-	flang.speed[3] = 4000.0;    		// 100us default
-	flang.speed[4] = 5000.0;    		// 100us default
-	flang.speed[5] = 6000.0;    		// 100us default
-	flang.speed[6] = 7000.0;    		// 100us default
-	flang.speed[7] = 8000.0;    		// 100us default
-	flang.speed[8] = 9000.0;    		// 100us default
-	flang.speed[9] = 10000.0;    		// 100us default
-
-	flang.delay_range[0] = 32;
-	flang.delay_range[1] = 64;
-	flang.delay_range[2] = 128;
-	flang.delay_range[4] = 156;
-	flang.delay_range[5] = 256;
-	flang.delay_range[6] = 356;
-	flang.delay_range[7] = 412;
-	flang.delay_range[8] = 512;
-	flang.delay_range[8] = 712;
-	flang.delay 		 = 1024;
-
-/*
-	struct DELAY {
-		Uint16 upper_delay;
-		Uint16 lower_delay;
-		Uint16 speed;
-		Uint16 delay;
-		int16  delay_index;
-	} dig_delay;
-*/
-
-	/*
-	dig_delay.upper_delay 	= 8192;
-	dig_delay.lower_delay 	= 4096;
-	dig_delay.speed 		= 1000; // 1000 uS
-	dig_delay.delay			= 6000;
-	dig_delay.delay_index 	= 0;
-	*/
-
-
-/*
-	struct TREMOLO {
-		float amplitude;
-		float periodHigh;
-		float periodLow;
-	} tremolo;
-*/
-/*
-	tremolo.amplitude 		= 1.0;
-	tremolo.periodHigh    	= 100.0;
-	tremolo.periodLow		= 50.0;
-*/
-
-/*
-	struct SVF {
-	   float Fupper;		// upper boundary of F
-	   float Flower;        // lower boundary of F
-	   float F;				// Tuning Coefficient  F1 = 2sin(pi*fc/fs)
-	   float Q;				// Tuning Coefficient  Q1 = 2sigma
-	   float  HPF;
-	   float  BPF[2];
-	   float  LPF[2];
-	};
-	struct SVF wah_svf;
-	struct SVF bass_svf;
-	struct SVF treble_svf;
-*/
-	wah_svf.Q[0] = 0.10; // Q = damp*2
-	wah_svf.Q[1] = 0.15;
-	wah_svf.Q[2] = 0.24;
-	wah_svf.Q[3] = 0.30; // Q = damp*2
-	wah_svf.Q[4] = 0.35;
-	wah_svf.Q[5] = 0.44;
-	wah_svf.Q[6] = 0.55;
-	wah_svf.Q[7] = 0.60;
-	wah_svf.Q[8] = 0.68;
-	wah_svf.Q[9] = 0.707;
-
-
-	wah_svf.F_range[0] = 0.1;
-	wah_svf.F_range[0] = 0.15;
-	wah_svf.F_range[0] = 0.20;
-	wah_svf.F_range[0] = 0.25;
-	wah_svf.F_range[0] = 0.30;
-	wah_svf.F_range[0] = 0.35;
-	wah_svf.F_range[0] = 0.40;
-	wah_svf.F_range[0] = 0.45;
-	wah_svf.F_range[0] = 0.50;
-
-	//upper
-	wah_svf.F = 0.085403;
-	wah_svf.Fupper = 0.21;
-	wah_svf.Flower = 0.08690;
-	wah_svf.BPF[0]=0.0;
-	wah_svf.BPF[1]=0.0;
-	wah_svf.LPF[0]=0.0;
-	wah_svf.LPF[1]=0.0;
-	wah_svf.HPF=0.0;
-
-
-
-/*
-	struct PITCH_SHIFT{
-		Uint16 Direction;
-		float PerUpper;
-		float PerLower;
-		float Per;
-		Uint16 count_delay1;
-		Uint16 ext_index_delay1;
-		int16 ext_delay;
-		int16 ext_delay_prev;
-		Uint16 PerReset;
-	} pitch_shift;
-*/
-
-pitch_shift.Direction 		= 0; // start out pitch shifting downwards
-pitch_shift.PerUpper  		= 120.0;
-pitch_shift.PerLower  		= 20.0;
-pitch_shift.Per				= 80.0;
-pitch_shift.count_delay1	= 0;
-pitch_shift.ext_index_delay1= 0;
-pitch_shift.ext_delay		= 0;
-pitch_shift.ext_delay_prev	= 0;
-pitch_shift.PerReset		= 0;
-
-
-/*
-	struct SAMPLE {
-		   int16 samp[5];
-		   Uint16 index[5];
-		   Uint16 count;
-	} sample;
-*/
-for(k = 0; k < 5; k++)
-{
-sample.samp[k] 			  = 0;
-sample.index[k] 		  = 0;
-zcross_pos.cross_samp[k]  = 0;
-zcross_pos.cross_index[k] = 0;
-zcross_neg.cross_samp[k]  = 0;
-zcross_neg.cross_index[k] = 0;
-}
-
-sample.count 			= 0;
-zcross_pos.count_delay 	= 0;
-zcross_neg.count_delay  = 0;
-
-/*
-	struct ZCROSS_POS {
-	   int16   cross_samp[5];
-	   Uint16  cross_index[5];
-	   Uint16  count_delay;
-	} zcross_pos;
-*/
-
-
-
-/*
-	struct ZCROSS_NEG{
-		   int16   cross_samp[5];
-		   Uint16  cross_index[5];
-		   Uint16  count_delay;
-	} zcross_neg;
-*/
-
-}
 
 //===========================================================================
 // End of file.

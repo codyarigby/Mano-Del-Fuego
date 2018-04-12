@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 ASM_SRCS += \
+../common/DSP2833x_CSMPasswords.asm \
 ../common/DSP2833x_CodeStartBranch.asm \
 ../common/DSP2833x_DisInt.asm \
 ../common/DSP2833x_usDelay.asm 
@@ -20,6 +21,7 @@ C_SRCS += \
 OBJS += \
 ./common/AIC23.obj \
 ./common/AIC23_SPI_control.obj \
+./common/DSP2833x_CSMPasswords.obj \
 ./common/DSP2833x_CodeStartBranch.obj \
 ./common/DSP2833x_CpuTimers.obj \
 ./common/DSP2833x_DefaultIsr.obj \
@@ -30,6 +32,7 @@ OBJS += \
 ./common/DSP2833x_usDelay.obj 
 
 ASM_DEPS += \
+./common/DSP2833x_CSMPasswords.d \
 ./common/DSP2833x_CodeStartBranch.d \
 ./common/DSP2833x_DisInt.d \
 ./common/DSP2833x_usDelay.d 
@@ -55,6 +58,7 @@ C_DEPS__QUOTED += \
 OBJS__QUOTED += \
 "common\AIC23.obj" \
 "common\AIC23_SPI_control.obj" \
+"common\DSP2833x_CSMPasswords.obj" \
 "common\DSP2833x_CodeStartBranch.obj" \
 "common\DSP2833x_CpuTimers.obj" \
 "common\DSP2833x_DefaultIsr.obj" \
@@ -65,6 +69,7 @@ OBJS__QUOTED += \
 "common\DSP2833x_usDelay.obj" 
 
 ASM_DEPS__QUOTED += \
+"common\DSP2833x_CSMPasswords.d" \
 "common\DSP2833x_CodeStartBranch.d" \
 "common\DSP2833x_DisInt.d" \
 "common\DSP2833x_usDelay.d" 
@@ -79,6 +84,7 @@ C_SRCS__QUOTED += \
 "../common/DSP2833x_SysCtrl.c" 
 
 ASM_SRCS__QUOTED += \
+"../common/DSP2833x_CSMPasswords.asm" \
 "../common/DSP2833x_CodeStartBranch.asm" \
 "../common/DSP2833x_DisInt.asm" \
 "../common/DSP2833x_usDelay.asm" 

@@ -3,9 +3,6 @@
 ################################################################################
 
 # Add inputs and outputs from these tool invocations to the build variables 
-CMD_SRCS += \
-../headers/DSP2833x_Headers_nonBIOS.cmd 
-
 C_SRCS += \
 ../headers/DSP2833x_GlobalVariableDefs.c 
 

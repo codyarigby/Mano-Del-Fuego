@@ -35,6 +35,7 @@ main.obj: ../LCD.h
 main.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/stdbool.h
 main.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/stdint.h
 main.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/math.h
+main.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/string.h
 
 ../main.c: 
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/stdlib.h: 
@@ -71,3 +72,4 @@ C:/ti/DSP2833x_Audio_App/DSP2833x_common/include/DSP2833x_DefaultISR.h:
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/stdbool.h: 
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/stdint.h: 
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/math.h: 
+C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/string.h: 

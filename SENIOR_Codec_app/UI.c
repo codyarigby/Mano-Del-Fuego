@@ -45,6 +45,7 @@ bool Switch1 = false;
 bool Switch2 = false;
 bool Switch3 = false;
 bool Switch4 = false;
+bool rx_flag = false;
 
 /*void deeznutz(void)
 {
@@ -603,7 +604,37 @@ void State_Initialize()
 
 bool BT_Connect()
 {
-    DELAY_US(100000);
+	//rx_flag = false;
+
+    //DELAY_US(1000000);
+	long jj;
+	long j;
+	for(jj=0; jj < 30; jj++)
+		{
+		for(j=0; j < 300000; j++)
+		{
+			if(rx_flag)
+			{
+				rx_flag = false;
+				return true;
+			}
+		}
+	}
+    /*init_uart();
+
+    scib_xmit('$');
+    DELAY_US(10000L);
+    scib_xmit('$');
+    DELAY_US(10000L);
+    scib_xmit('$');
+    DELAY_US(10000L);
+
+    //rx_flag = false;
+    DELAY_US(100000L);
+    if(rx_flag)
+	{
+		return true;
+	}*/
     return false;
 }
 void Attempt_RF_Connect()

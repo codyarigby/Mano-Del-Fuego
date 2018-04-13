@@ -152,12 +152,7 @@ interrupt void local_XINT6_ISR(void);
 #define MIC 		0      	// 0 = line input, 1 = microphone input
 #define I2S_SEL 	0  		// 0 = normal DSP McBSP dig. interface, 1 = I2S interface
 
-//effect defines
-#define WAH 		1
-#define FLANGER 	3
-#define VOLSWELL 	2
-#define BYPASS 		0
-#define PITCH		4
+
 
 
 
@@ -1326,7 +1321,7 @@ if(state_change_flag)
   					gyro_vol = 1.0;
   				}
   			}
-  			else if(effectsel == PITCH)
+  			else if(effectsel == PITCHDOWN)
   			{
   				if(imu_dat.Xgyro < 250 | imu_dat.Xgyro > 250)
 				{
@@ -1422,7 +1417,7 @@ if(state_change_flag)
 					timer_reset = 0;
 				}
 			}
-			else if(effectsel == PITCH)
+			else if(effectsel == PITCHDOWN)
 			{
 				pitch_shift.count_delay1 = 0x0fff  & (pitch_shift.count_delay1 + 1); // 0x0000 - 0x0fff
 				if(pitch_shift.PerReset == 1)
@@ -1532,7 +1527,7 @@ if(state_change_flag)
   			// *******************************************************************************************************
   			// 							Pitch Shifting variables
   			// *******************************************************************************************************
-  			else if (effectsel == PITCH)
+  			else if (effectsel == PITCHDOWN)
   			{
   				pitch_shift.ext_index_delay1 = 0x7fff & (ext_index - pitch_shift.count_delay1);
   				zcross_pos.count_delay = 0x07ff & (zcross_pos.count_delay + 4);
@@ -1648,6 +1643,16 @@ if(state_change_flag)
   				McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
   				pitch_shift.ext_delay_prev = ext_Buffer[pitch_shift.ext_index_delay1];
 
+  			}
+
+  			else
+  			{
+  			  // *** View the IMU Data real time from the DAC *** //
+              //McbspaRegs.DXR2.all = imu_dat.Xaccel;
+              //McbspaRegs.DXR2.all = imu_dat.Xgyro;
+              //McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+              McbspaRegs.DXR2.all = *ch1_ptr;
+              McbspaRegs.DXR1.all = *ch1_ptr;
   			}
 
   			// *** finish audio buffer *** //

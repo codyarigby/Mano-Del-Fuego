@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit!
 ################################################################################
 
+SHELL = cmd.exe
+
 # Add inputs and outputs from these tool invocations to the build variables 
 CMD_SRCS += \
 C:/ti/controlSUITE/device_support/f2833x/v141/DSP2833x_headers/cmd/DSP2833x_Headers_nonBIOS.cmd \
@@ -14,13 +16,6 @@ C_SRCS += \
 ../UI.c \
 ../main.c 
 
-OBJS += \
-./AsciiLib.obj \
-./LCD.obj \
-./MDF_init.obj \
-./UI.obj \
-./main.obj 
-
 C_DEPS += \
 ./AsciiLib.d \
 ./LCD.d \
@@ -28,12 +23,12 @@ C_DEPS += \
 ./UI.d \
 ./main.d 
 
-C_DEPS__QUOTED += \
-"AsciiLib.d" \
-"LCD.d" \
-"MDF_init.d" \
-"UI.d" \
-"main.d" 
+OBJS += \
+./AsciiLib.obj \
+./LCD.obj \
+./MDF_init.obj \
+./UI.obj \
+./main.obj 
 
 OBJS__QUOTED += \
 "AsciiLib.obj" \
@@ -41,6 +36,13 @@ OBJS__QUOTED += \
 "MDF_init.obj" \
 "UI.obj" \
 "main.obj" 
+
+C_DEPS__QUOTED += \
+"AsciiLib.d" \
+"LCD.d" \
+"MDF_init.d" \
+"UI.d" \
+"main.d" 
 
 C_SRCS__QUOTED += \
 "../AsciiLib.c" \

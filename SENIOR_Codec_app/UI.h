@@ -60,13 +60,23 @@ void Clear_Buttons();
 #define P1 1
 #define P2 2
 
-#define NumFX 5
+#define NumFX 15
 
-#define Bypass 0
-#define Wah 1
-#define VolSwell 2
-#define Flanger 3
-#define PitchShift 4
+#define BYPASS 0
+#define WAH 1
+#define VOLSWELL 2
+#define FLANGER 3
+#define PITCHUP     4
+#define PITCHDOWN   5
+#define DISTORTION  6
+#define FUZZ        7
+#define CHORUS      8
+#define ECHO        9
+#define TREMOLOO    10
+#define BASSBOOST   11
+#define PHASER      12
+#define VIBRATO     13
+#define ARPEGG      14
 
 #define EXIT_RF 0
 #define EXIT_Setting 1

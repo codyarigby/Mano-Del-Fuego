@@ -148,19 +148,12 @@ interrupt void local_XINT6_ISR(void);
 #define MIC 		0      	// 0 = line input, 1 = microphone input
 #define I2S_SEL 	0  		// 0 = normal DSP McBSP dig. interface, 1 = I2S interface
 
-// *** effect defines *** //
-#define WAH 		1
-#define FLANGER 	3
-#define VOLSWELL 	2
-#define BYPASS 		0
-#define PITCHUP		4
-#define PITCHDOWN   5
-#define ARPEGG      6
 
 // *** Data Allocations, All effects structures go into the EFFECTRAM *** //
 #pragma DATA_SECTION (ping_buffer, "DMARAML5"); // Place ping and pong in DMA RAM L5
 #pragma DATA_SECTION (pong_buffer, "DMARAML5");
 #pragma DATA_SECTION(ext_Buffer, "extSRAM6");
+#pragma DATA_SECTION(echo_Buffer, "extSRAM6");
 #pragma DATA_SECTION(pitch_shift_up, "EFFECTRAM6");
 #pragma DATA_SECTION(pitch_shift_down, "EFFECTRAM6");
 #pragma DATA_SECTION(sample, "EFFECTRAM6");
@@ -214,6 +207,8 @@ Uint16 prevcountstart;
 // *** main external audio buffer *** //
 int16 ext_Buffer[32767];
 Uint16 ext_Buffer_size = 32767; // and these pointers with 0x7FFF
+int16 echo_Buffer[131071ULL];
+unsigned long long int echo_Buffer_size = 32767; // and these pointers with 0x7FFF
 // *******************************************************************************************************
 // 							Pitch Shifting variables
 // *******************************************************************************************************
@@ -426,7 +421,7 @@ struct SVF treble_svf;
 // *******************************************************************************************************
 Uint16 toggler				= 0;
 Uint16 ii 					= 0;
-Uint16 k 					= 0;
+unsigned long long int k 	= 0;
 Uint16 effectsel			= BYPASS;
 
 //effect UI Control
@@ -461,6 +456,7 @@ void main(void)
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
    for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
+   for(k=0; k<echo_Buffer_size; k++) { echo_Buffer[k] = 0xEEEE; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
 
@@ -941,10 +937,11 @@ void mano_del_fuego(void)
 			timer_reset = 1;
   			}
 
-  			else if(effectsel == VOLSWELL)
+  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO)
   			{
 
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
+  			    activateEffect = 1;
   				if(activateEffect == 1)
   				{
   				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
@@ -1179,6 +1176,158 @@ void mano_del_fuego(void)
   				McbspaRegs.DXR2.all = *ch1_ptr;
   				McbspaRegs.DXR1.all = *ch1_ptr;
 			}
+  		    else if (effectsel == DISTORTION)
+            {
+                float sgn = ((*ch1_ptr) < 0) ? -1.0 : 1.0;
+                float x =  (float)*ch1_ptr;
+                float dist;
+                //dist = x;
+                //dist = sgn*(1.0 - exp(0.004*x*sgn));
+                //dist = 16000 * tanh(x/2000);
+                //dist = 16000 * atan(x/3000);
+                //dist = 16000 * (x/8000)/(1 + exp(-x/8000));
+                //dist = 16000 * (x/4000)/sqrt(1 + (x/4000)*(x/4000));
+                //dist = 32000 * ((x/3000)/(1 + abs(x/3000)));
+                //dist = 0.001*dist + 0.999*x;
+                //dist = x + x*x/10000 + x*x*x/1000000000;
+                int j;
+                //int levels = gyro_vol * 20;
+                dist = x;
+                for(j = 0; j < 5; j++)
+                {
+                    dist = 16000.0 * atan(x/(14000.0));
+                    x = dist;
+                }
+                //dist = 32000*(3*(x/32000)/2 * (1 - (x/32000)*(x/32000)/3));
+                //dist = 32000*(abs(2*x/32000) - (x/32000)*(x/32000)) * sgn;
+                if(dist > 32767.0) dist = 32767.0;
+                if(dist < -32767.0) dist = -32767.0;
+
+
+
+                McbspaRegs.DXR2.all = (int16)(dist);
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == BASSBOOST)
+            {
+                static float x = 0;
+                static float x_1 = 0;
+                static float x_2 = 0;
+                static float y1 = 0;
+                static float y1_1 = 0;
+                static float y1_2 = 0;
+                float y;
+
+                x_2 = x_1;
+                x_1 = x;
+                x = (float)*ch1_ptr;
+
+                y1_2 = y1_1;
+                y1_1 = y1;
+
+                float fc = 25.0;
+                float fb = 5.0;
+                float fs = 48000.0;
+                float G = 46*gyro_vol;
+                float d = -1*cos(2*3.14*fc/fs);
+                float V0 = pow(10, G/20);
+                float H0 = V0-1.0;
+                float ab = (tan(3.14*fb/fs) - 1)/(tan(3.14*fb/fs) + 1);
+
+
+                y1 = -1.0*ab*x + d*(1.0 - ab)*x_1 + x_2 - d*(1.0-ab)*y1_1 + ab*y1_2;
+                y = H0/2 * (x - y1) + x;
+
+                McbspaRegs.DXR2.all = (int16)(y);
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == ECHO)
+            {
+                static unsigned long long int echo_index = 0;
+                unsigned long long int phase_delay[4] = {16383, 32767, 65535, 131071};
+                int16 phase_out = ((*ch1_ptr)/15)*5;
+                int j;
+                for(j = 0; j < 4; j++)
+                {
+                    long long int phase_index = (echo_index - phase_delay[j]) & 0x1FFFF;
+                    if(phase_index < 0) phase_index += 131072;
+                    phase_out += (echo_Buffer[phase_index]/15)*(4-j)*gyro_vol*1.5;
+                }
+
+                echo_Buffer[echo_index] = phase_out;
+                echo_index++;
+                echo_index &= 0x1FFFF;
+                McbspaRegs.DXR2.all = phase_out;
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == CHORUS)
+            {
+                int phase_delay[4] = {2400, 4800, 7200, 9600};
+                int16 phase_out = 0;
+                int j;
+                for(j = 0; j < 4; j++)
+                {
+                    int phase_index = ext_index - phase_delay[j];
+                    if(phase_index < 0) phase_index += 32768;
+                    phase_out += (ext_Buffer[phase_index]/15*(4-j));
+                }
+                phase_out = (2*gyro_vol)*phase_out + (*ch1_ptr)/15*(15 - 10*gyro_vol);
+                McbspaRegs.DXR2.all = phase_out;
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == TREMOLOO)
+            {
+                  static float trem_index = 0.0;
+                  float trem_len = 48000.0 - 40000.0 * gyro_vol;
+                  float trem_out = (float)(*ch1_ptr);
+                  trem_out *= (0.4*cos(2*3.14*trem_index/trem_len) + 0.6);
+                  trem_index += 1.0;
+                  if(trem_index > trem_len) trem_index = 0.0;
+                  McbspaRegs.DXR2.all = (int16)trem_out;
+                  McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == FUZZ)
+            {
+                  float gain = 16.0 - 15.0*gyro_vol;
+                  int16 fuzz_out = (int16)(gain * (*ch1_ptr));
+                  int16 thresh_high = 1000 + (int16)(15000.0 * gyro_vol);
+                  int16 thresh_low = -1 * thresh_high;
+                  if(fuzz_out > thresh_high) fuzz_out = thresh_high;
+                  else if(fuzz_out < thresh_low) fuzz_out = thresh_low;
+                  McbspaRegs.DXR2.all = (int16)fuzz_out;
+                  McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == PHASER)
+            {
+                  static float dmin = 440.0/(48000.0/2);
+                  static float dmax = 16000.0/(48000.0/2);
+                  static float fb = 0.7;
+                  static float lfoPhase = 0;
+                  static float depth = 1.0;
+                  static float zm1 = 0.0;
+                  static float lfoInc = 2.0 * 3.14 * 0.5 / 48000.0;
+                  float d  = dmin + (dmax-dmin) * ((sin( lfoPhase ) + 1.0)/2.0);
+                  lfoPhase += lfoInc;
+                  if( lfoPhase >= 3.14 * 2.0 ) lfoPhase -= 3.14 * 2.0;
+                  static float alps_delay[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+                  static float alps_zm1[6] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+                  //update filter coeffs
+                  int j;
+                  for( j = 0; j < 6; j++ )
+                    alps_delay[j] = (1.0 - d)/(1.0 + d);
+                  float in_samp = (float)(*ch1_ptr);
+                  float y = in_samp + zm1 * fb;
+                  for( j = 0; j < 6; j++ )
+                  {
+                      in_samp = y;
+                      y = y * -1.0*alps_delay[j] + alps_zm1[j];
+                      alps_zm1[j] = y * alps_delay[j] + in_samp;
+                  }
+                  zm1 = y;
+                  lfoInc = 2.0 * 3.14 * 4.0 / 48000.0 * imu_dat.Xaccel/32000.0;
+                  McbspaRegs.DXR2.all = (int16)(in_samp + depth*y);
+                  McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
 
 
   			// *******************************************************************************************************

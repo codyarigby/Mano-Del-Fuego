@@ -134,7 +134,10 @@ void Init_timer1(void)
 	 //Flanger = 800
 	 //wah = 200
 	 //ConfigCpuTimer(&CpuTimer1, 150, 200);			// 150Mhz, 100uS
-	 ConfigCpuTimer(&CpuTimer1, 150, 20);			// 150Mhz, 100uS
+	 // 5 is an octave
+	 // 28 is minor 3rd
+	 // 10.5 is 5th
+	 ConfigCpuTimer(&CpuTimer1, 150, 10.5);			// 150Mhz, 100uS
 	 CpuTimer1.RegsAddr->TCR.bit.TSS = 0;			// start the timer
 	 EDIS;
 
@@ -218,6 +221,12 @@ void Init_gpioUI(void){
 	// *** LED11 *** //
 	GpioCtrlRegs.GPAMUX1.bit.GPIO12 	= 0;        // GPIO
 	GpioCtrlRegs.GPADIR.bit.GPIO12	 	= 1;        // output
+
+
+
+	// *** Measurement GPIO *** //
+	GpioCtrlRegs.GPAMUX1.bit.GPIO12 = 0;        // GPIO
+	GpioCtrlRegs.GPADIR.bit.GPIO12 	= 1;        // output
 
 
 	// *** These GPIOS go to the stomp switches and have their own unique external interrupt *** //

@@ -235,7 +235,7 @@ struct PITCH_SHIFT{
 
 struct PITCH_SHIFT pitch_shift_up; // struct for pitch shifting up
 
-
+float C;
 // *** shared by both pitch shifter and delay based effects *** //
 int16 ext_prev;
 Uint16 ext_index;
@@ -421,7 +421,8 @@ struct SVF treble_svf;
 // *******************************************************************************************************
 Uint16 toggler				= 0;
 Uint16 ii 					= 0;
-unsigned long long int k 	= 0;
+Uint16 k 					= 0;
+unsigned long long int kk	= 0;
 Uint16 effectsel			= BYPASS;
 
 //effect UI Control
@@ -456,7 +457,7 @@ void main(void)
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
    for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
-   for(k=0; k<echo_Buffer_size; k++) { echo_Buffer[k] = 0xEEEE; }
+   for(kk=0; k<echo_Buffer_size; k++) { echo_Buffer[k] = 0xEEEE; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
 
@@ -517,7 +518,7 @@ void main(void)
 	PieCtrlRegs.PIEACK.bit.ACK1  = 1;      // Enables PIE to drive a pulse into the CPU
 	PieCtrlRegs.PIEACK.bit.ACK7  = 1;      // Enables PIE to drive a pulse into the CPU
 	PieCtrlRegs.PIEACK.bit.ACK9  = 1;      // Enables PIE to drive a pulse into the CPU
-	//PieCtrlRegs.PIEACK.bit.ACK3 = 1;    // Enables PIE to drive a pulse into the CPU
+	PieCtrlRegs.PIEACK.bit.ACK3 = 1;    // Enables PIE to drive a pulse into the CPU
 
 	// The interrupt can be asserted in the following interrupt lines
 	PieCtrlRegs.PIEIER12.bit.INTx1 = 1;  // Enable PIE Group12 INT1 (XINT3)
@@ -565,7 +566,7 @@ DELAY_US(10000L);
 
 
 // *** Initialize the UI Display *** //
-Initialize_Board();
+//Initialize_Board();
 
 
 // *** Enable all interrupt channels *** //
@@ -578,7 +579,7 @@ IER |= PIEACK_GROUP9;						// Enable  INT9
 EINT;      					        		// Global enable of interrupts
 
 rx_flag = false;
-//Initialize_Board();
+Initialize_Board();
 
 //CpuTimer1.RegsAddr->TCR.bit.TSS = 0; // start the timer
 DmaRegs.CH1.CONTROL.bit.RUN = 1; // Start rx on Channel 1
@@ -603,7 +604,7 @@ imu_dat.Xaccel_real_prev = 0.0;
 
 //effectsel = absU16(0xfffe);
 
-effectsel = PITCHUP;
+//effectsel = PITCHUP;
   	while(1) {
 	// Code loops here all the time
   	mano_del_fuego();
@@ -825,6 +826,7 @@ interrupt void local_XINT6_ISR(void)
 void mano_del_fuego(void)
 {
 
+	    activateEffect = 1;
 		if(state_change_flag)
   		{
   			state_change_flag = false;
@@ -937,39 +939,57 @@ void mano_del_fuego(void)
 			timer_reset = 1;
   			}
 
-  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO)
+  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO || effectsel == GYROWAH)
   			{
 
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
-  			    activateEffect = 1;
-  				if(activateEffect == 1)
+  			    //activateEffect = 1;
+  			  if(imu_dat.Xgyro > 250 || imu_dat.Xgyro < -250)
+  			  {
+  				if(activateEffect != 0)
   				{
-  				gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
+  					//gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
+  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.065;
+  					//gyro_vol = imu_dat.Xg_pos;
   				}
+  				if(imu_dat.Xg_pos < 0.0)
+				{
+					imu_dat.Xg_pos = 0.0;
+				}
+				else if (imu_dat.Xg_pos > 1.0)
+				{
+					imu_dat.Xg_pos = 1.0;
+				}
+  				gyro_vol = imu_dat.Xg_pos;
   				if(gyro_vol < 0.0)
   				{
-  					gyro_vol = 0;
+  					gyro_vol = 0.0;
   				}
   				else if (gyro_vol > 1.0)
   				{
   					gyro_vol = 1.0;
   				}
+  			  }
   			}
 
   			else if(effectsel == PITCHUP || effectsel == ARPEGG || effectsel == PITCHDOWN)
 			{
   				pitch_shift_up.pitch_prev = pitch_shift_up.pitch;
 
-				if(imu_dat.Xgyro < 250 | imu_dat.Xgyro > 250)
+				if(imu_dat.Xgyro > 250 || imu_dat.Xgyro < -250)
 				{
-					if(activateEffect !=0 )
+					if(activateEffect !=0 && effectsel == ARPEGG)
 					{
 						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.065;
+					}
+					else if (activateEffect !=0 && effectsel == PITCHUP)
+					{
+						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.0185;
 					}
 					// *** Set limits to the gyro position *** //
 					if(imu_dat.Xg_pos < 0.0)
 					{
-						imu_dat.Xg_pos = 0;
+						imu_dat.Xg_pos = 0.0;
 					}
 					else if (imu_dat.Xg_pos > 1.0)
 					{
@@ -1003,7 +1023,18 @@ void mano_del_fuego(void)
 					}
 					else if(effectsel == PITCHUP || effectsel == PITCHDOWN)
 					{
-						pitch_shift_up.Per = pitch_shift_up.PerUpper - imu_dat.Xg_pos*(pitch_shift_up.PerUpper - pitch_shift_up.PerLower[p1]);
+						//C = 1.6*expf(-1.2*imu_dat.Xg_pos)+0.7;
+						C = 3.9*expf(-1.65*imu_dat.Xg_pos)+0.295;
+						pitch_shift_up.Per = pitch_shift_up.PerUpper - C*imu_dat.Xg_pos*(pitch_shift_up.PerUpper - pitch_shift_up.PerLower[p1]);
+
+						if (pitch_shift_up.Per < pitch_shift_up.PerLower[p1])
+						{
+							pitch_shift_up.Per = pitch_shift_up.PerLower[p1];
+						}
+						if (pitch_shift_up.Per > pitch_shift_up.PerUpper)
+						{
+							pitch_shift_up.Per = pitch_shift_up.PerUpper;
+						}
 						pitch_shift_up.PerReset = 1;
 					}
 
@@ -1013,12 +1044,12 @@ void mano_del_fuego(void)
 						pitch_shift_up.PerReset = 1;
 					}
 				}
-
+			}
   			// *** reset the d_flag to wait for next imu data packet from MCM *** //
   			d_flag = 0;
   			// *** circular buffer uart_i *** //
   	  	  	uart_i = 0x03ff & (uart_i + 1);
-			}
+
   		}
 
   		// Timer 1 interrupt prompts the modulation of effects
@@ -1157,18 +1188,52 @@ void mano_del_fuego(void)
 				McbspaRegs.DXR2.all = (ext_Buffer[flang.delay_index] >> 1) + (ext_Buffer[ext_index] >> 1);
 				McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
   			}
+
   			else if (effectsel == VOLSWELL)
   			{
-  				float fIn = (float)(*ch1_ptr)*0.000031*gyro_vol;
-  				McbspaRegs.DXR2.all = (int16)(fIn*32767.0);
-  				McbspaRegs.DXR1.all = (int16)(fIn*32767.0);
+  				float fIn = ((float)(*ch1_ptr))*gyro_vol;
+  				McbspaRegs.DXR2.all = (int16)(fIn);
+  				McbspaRegs.DXR1.all = (int16)(fIn);
 
   				// *** dummy buffer *** //
   				//dummy_buffer[dummy_index] = gyro_vol;
   				//dummy_index = 0x03ff & (dummy_index + 1);
   			}
+
+  			else if (effectsel == GYROWAH)
+  			{
+  			//////   Gyro Wah ///////
+
+			wah_svf.F = wah_svf.Flower + gyro_vol*(wah_svf.Fupper - wah_svf.Flower);
+			wah_svf.Q[0] = 0.70 - gyro_vol*(0.70 - 0.10);
+			if(wah_svf.F > wah_svf.Fupper)
+			{
+				wah_svf.F = wah_svf.Fupper;
+			}
+			else if (wah_svf.F < wah_svf.Flower)
+			{
+				wah_svf.F = wah_svf.Flower;
+			}
+
+			wah_svf.HPF    = ((float)(*ch1_ptr))*0.000031 - wah_svf.LPF[0] - (wah_svf.Q[0])*(wah_svf.BPF[0]); // index Q using Nick's structure
+			wah_svf.BPF[1] = (wah_svf.F)*(wah_svf.HPF) + wah_svf.BPF[0];
+			wah_svf.LPF[1] = (wah_svf.F)*(wah_svf.BPF[1]) + wah_svf.LPF[0];
+
+			// *** Current values become past values *** //
+			wah_svf.BPF[0] = wah_svf.BPF[1];
+			wah_svf.LPF[0] = wah_svf.LPF[1];
+
+
+			 McbspaRegs.DXR2.all = (int16)((wah_svf.BPF[1])*32767.0);
+			 McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+
+  			}
   			else if (effectsel == BYPASS)
   			{
+
+
+
+
   				// *** View the IMU Data real time from the DAC *** //
   				//McbspaRegs.DXR2.all = imu_dat.Xaccel;
   				//McbspaRegs.DXR2.all = imu_dat.Xgyro;
@@ -1592,6 +1657,10 @@ void mano_del_fuego(void)
 				{
 					McbspaRegs.DXR2.all = *ch1_ptr;
 				}
+				else if(imu_dat.Xg_pos < 0.025 && effectsel == PITCHUP)
+				{
+					McbspaRegs.DXR2.all = *ch1_ptr;
+				}
 				else
 				{
 					McbspaRegs.DXR2.all = (ext_Buffer[pitch_shift_up.pitch_index]);
@@ -1678,7 +1747,7 @@ pitch_shift_up.zcross_i         = 0;
 pitch_shift_up.zcross_detect_search    = 0;
 pitch_shift_up.zcross_detect    = 0;
 pitch_shift_up.Direction 		= 1;
-pitch_shift_up.PerUpper 		= 200;
+pitch_shift_up.PerUpper 		= 300;
 pitch_shift_up.Per 				= 50;
 pitch_shift_up.count_delay  	= 0;
 pitch_shift_up.pitch_index  	= 0;
@@ -1696,24 +1765,24 @@ pitch_shift_up.Arpeggios[0][1]  = 28.0;
 pitch_shift_up.Arpeggios[0][2]  = 10.5;
 pitch_shift_up.Arpeggios[0][3]  = 5;
 // Major Arpeggio
-pitch_shift_up.Arpeggios[1][0]  = 0.0;
-pitch_shift_up.Arpeggios[1][1]  = 28.0;
+pitch_shift_up.Arpeggios[1][0]  = 200.0;
+pitch_shift_up.Arpeggios[1][1]  = 20.0;
 pitch_shift_up.Arpeggios[1][2]  = 10.5;
 pitch_shift_up.Arpeggios[1][3]  = 5;
 // Locrian Arpeggio
-pitch_shift_up.Arpeggios[2][0]  = 0.0;
+pitch_shift_up.Arpeggios[2][0]  = 200.0;
 pitch_shift_up.Arpeggios[2][1]  = 28.0;
-pitch_shift_up.Arpeggios[2][2]  = 10.5;
+pitch_shift_up.Arpeggios[2][2]  = 12.5;
 pitch_shift_up.Arpeggios[2][3]  = 5;
-// Ionian Arpeggio
+// Minor Sweep Arpeggio
 pitch_shift_up.Arpeggios[3][0]  = 0.0;
-pitch_shift_up.Arpeggios[3][1]  = 28.0;
-pitch_shift_up.Arpeggios[3][2]  = 10.5;
+pitch_shift_up.Arpeggios[3][1]  = 16.0;
+pitch_shift_up.Arpeggios[3][2]  = 8.5;
 pitch_shift_up.Arpeggios[3][3]  = 5;
-// Mixolydian Arpeggio
+// Major Sweep Arpeggio
 pitch_shift_up.Arpeggios[4][0]  = 0.0;
-pitch_shift_up.Arpeggios[4][1]  = 28.0;
-pitch_shift_up.Arpeggios[4][2]  = 10.5;
+pitch_shift_up.Arpeggios[4][1]  = 16.0;
+pitch_shift_up.Arpeggios[4][2]  = 6.5;
 pitch_shift_up.Arpeggios[4][3]  = 5;
 // Phrygian Arpeggio
 pitch_shift_up.Arpeggios[5][0]  = 0.0;
@@ -1739,7 +1808,7 @@ pitch_shift_down.zcross_i         		= 0;
 pitch_shift_down.zcross_detect_search   = 0;
 pitch_shift_down.zcross_detect    		= 0;
 pitch_shift_down.Direction 				= 1;
-pitch_shift_down.PerUpper 				= 200;
+pitch_shift_down.PerUpper 				= 300;
 pitch_shift_down.Per 					= 50;
 pitch_shift_down.count_delay  			= 0;
 pitch_shift_down.pitch_index  			= 0;
@@ -1750,34 +1819,34 @@ pitch_shift_down.delay_return     		= 0x7ff;  // 1023 is what we aim for when re
 pitch_shift_down.search_window    		= 1024;   // start seahc for a zero crossing to jump when the pitch ptr delay is between 512 and 0
 // half step
 pitch_shift_down.PerLower[0] 			= 9.0;
-pitch_shift_up.PerLower[0] 				= 9.0;
+pitch_shift_up.PerLower[0] 				= 90.0;
 // whole step
 pitch_shift_down.PerLower[1] 			= 9.0;
-pitch_shift_up.PerLower[1] 				= 9.0;
+pitch_shift_up.PerLower[1] 				= 42.0;
 // minor 3rd
 pitch_shift_down.PerLower[2] 			= 9.0;
-pitch_shift_up.PerLower[2] 				= 9.0;
+pitch_shift_up.PerLower[2] 				= 28.0;
 //major third
 pitch_shift_down.PerLower[3] 			= 9.0;
-pitch_shift_up.PerLower[3] 				= 9.0;
+pitch_shift_up.PerLower[3] 				= 20.0;
 // fourth
 pitch_shift_down.PerLower[4] 			= 9.0;
-pitch_shift_up.PerLower[4] 				= 9.0;
+pitch_shift_up.PerLower[4] 				= 16.0;
 // tritone
 pitch_shift_down.PerLower[5] 			= 9.0;
-pitch_shift_up.PerLower[5] 				= 9.0;
+pitch_shift_up.PerLower[5] 				= 12.5;
 // fifth
 pitch_shift_down.PerLower[6] 			= 9.0;
-pitch_shift_up.PerLower[6] 				= 9.0;
+pitch_shift_up.PerLower[6] 				= 10.5;
 // sixth
 pitch_shift_down.PerLower[7] 			= 9.0;
-pitch_shift_up.PerLower[7] 				= 9.0;
+pitch_shift_up.PerLower[7] 				= 8.5;
 // seventh
 pitch_shift_down.PerLower[8] 			= 9.0;
-pitch_shift_up.PerLower[8] 				= 9.0;
+pitch_shift_up.PerLower[8] 				= 6.0;
 // octave
 pitch_shift_down.PerLower[9] 			= 9.0;
-pitch_shift_up.PerLower[9] 				= 9.0;
+pitch_shift_up.PerLower[9] 				= 5.0;
 
 }
 

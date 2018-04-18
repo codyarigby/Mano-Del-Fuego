@@ -825,7 +825,14 @@ interrupt void local_XINT6_ISR(void)
 // ****************************** //
 void mano_del_fuego(void)
 {
-
+        if((*ch1_ptr) == 0x8000 || (*ch1_ptr) == 0x7FFF)
+        {
+            GpioDataRegs.GPADAT.bit.GPIO12 = 1;
+        }
+        else
+        {
+            GpioDataRegs.GPADAT.bit.GPIO12 = 0;
+        }
 	    activateEffect = 1;
 		if(state_change_flag)
   		{

@@ -646,11 +646,13 @@ void Attempt_RF_Connect()
     {
         Global_Board_State.RF_Connected = true;
         done = true;
+        GpioDataRegs.GPADAT.bit.GPIO11 = 1;
         Main_Mode();
     }
     else
     {
         Global_Board_State.RF_Connected = false;
+        GpioDataRegs.GPADAT.bit.GPIO11 = 0;
         UI_LCD_RF_Try_Again_mode();
     }
 
@@ -748,6 +750,8 @@ void State_Change()
         if(Switch1)
         {
             Clear_Buttons();
+            GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+            GpioDataRegs.GPADAT.bit.GPIO8 = 0;
             if(Global_Board_State.currentEffect != FX1)
             {
                 UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
@@ -758,6 +762,8 @@ void State_Change()
         if(Switch2)
         {
             Clear_Buttons();
+            GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+            GpioDataRegs.GPADAT.bit.GPIO8 = 1;
             if(Global_Board_State.currentEffect != FX2)
             {
                 UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
@@ -768,6 +774,8 @@ void State_Change()
         if(Switch3)
         {
             Clear_Buttons();
+            GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = 0;
             if(Global_Board_State.currentEffect != FX3)
             {
                 UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
@@ -778,6 +786,8 @@ void State_Change()
         if(Switch4)
         {
             Clear_Buttons();
+            GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = 1;
             if(Global_Board_State.currentEffect != FX4)
             {
                 UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);

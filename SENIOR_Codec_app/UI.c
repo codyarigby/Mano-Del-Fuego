@@ -745,46 +745,62 @@ void State_Change()
     static int FX_Modify = -1;
     if(Global_Board_State.boardMode == Main_Menu_Mode)
     {
-        if(Switch1)
-        {
-            Clear_Buttons();
-            if(Global_Board_State.currentEffect != FX1)
-            {
-                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
-                Global_Board_State.currentEffect = FX1;
-                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
-            }
-        }
-        if(Switch2)
-        {
-            Clear_Buttons();
-            if(Global_Board_State.currentEffect != FX2)
-            {
-                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
-                Global_Board_State.currentEffect = FX2;
-                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
-            }
-        }
-        if(Switch3)
-        {
-            Clear_Buttons();
-            if(Global_Board_State.currentEffect != FX3)
-            {
-                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
-                Global_Board_State.currentEffect = FX3;
-                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
-            }
-        }
-        if(Switch4)
-        {
-            Clear_Buttons();
-            if(Global_Board_State.currentEffect != FX4)
-            {
-                UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
-                Global_Board_State.currentEffect = FX4;
-                UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
-            }
-        }
+    	if(Switch1)
+		{
+			Clear_Buttons();
+			GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+			GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+			GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+			DELAY_US(1);
+			if(Global_Board_State.currentEffect != FX1)
+			{
+				UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+				Global_Board_State.currentEffect = FX1;
+				UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+			}
+		}
+		if(Switch2)
+		{
+			Clear_Buttons();
+			GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+			GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+			GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+			DELAY_US(1);
+			if(Global_Board_State.currentEffect != FX2)
+			{
+				UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+				Global_Board_State.currentEffect = FX2;
+				UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+			}
+		}
+		if(Switch3)
+		{
+			Clear_Buttons();
+			GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+			GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+			GpioDataRegs.GPADAT.bit.GPIO8 = 1;
+			DELAY_US(1);
+			if(Global_Board_State.currentEffect != FX3)
+			{
+				UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+				Global_Board_State.currentEffect = FX3;
+				UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+			}
+		}
+		if(Switch4)
+		{
+			Clear_Buttons();
+			GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+			GpioDataRegs.GPADAT.bit.GPIO7 = 1;
+			GpioDataRegs.GPADAT.bit.GPIO8 = 1;
+			DELAY_US(1);
+			if(Global_Board_State.currentEffect != FX4)
+			{
+				UI_LCD_Deactivate_FX_mode(Global_Board_State.currentEffect);
+				Global_Board_State.currentEffect = FX4;
+				UI_LCD_Activate_FX_mode(Global_Board_State.currentEffect);
+			}
+		}
         if(ButtonDown)
         {
             Clear_Buttons();

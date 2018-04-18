@@ -29,11 +29,11 @@
 
 Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
-char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distort", "Fuzz", "Chorus", "Echo", "Tremolo", "BBoost", "Phaser", "Vibrato", "Arpeggiator"};
-char param1_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
-int value1_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-char param2_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
-int value2_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distort", "Fuzz", "Chorus", "Echo", "Tremolo", "BBoost", "Phaser", "Vibrato", "Arpegg", "GyroWah"};
+char param1_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
+int value1_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+char param2_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
+int value2_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 bool Button1 = false;
 bool Button2 = false;

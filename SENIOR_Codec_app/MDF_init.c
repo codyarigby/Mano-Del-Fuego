@@ -249,7 +249,7 @@ void Init_gpioUI(void){
 	GpioCtrlRegs.GPBQSEL1.bit.GPIO35 	= 0;        // Qual using 3 samples
 	GpioCtrlRegs.GPBPUD.bit.GPIO35 		= 0;        // Enable pull-up
 
-	// *** Stomp3 (XREADY Xint6) *** //
+	// *** Stomp3 (XCS7 Xint6) *** //
 	GpioCtrlRegs.GPBMUX1.bit.GPIO37 	= 0;   		// GPIO
 	GpioCtrlRegs.GPBDIR.bit.GPIO37 		= 0;        // input
 	GpioCtrlRegs.GPBQSEL1.bit.GPIO37 	= 0;        // Qual using 3 samples

@@ -240,6 +240,8 @@ float C;
 int16 ext_prev;
 Uint16 ext_index;
 
+Uint16 connect_count = 0;
+
 // *** variables used in zcross calculation *** //
 int16 closest_d;
 int16 temp_d;
@@ -693,6 +695,10 @@ interrupt void local_SCIRXINTB_ISR(void) // SCI-B
 	//Uint16 deactivateCounter = 0;
 	rx_flag = true;
 	PieCtrlRegs.PIEACK.all |= PIEACK_GROUP9;       // Issue PIE ack
+
+	//connect_count = 0x7fff;
+	//GpioDataRegs.GPADAT.bit.GPIO11 = 1;
+
 }
 
 
@@ -914,7 +920,7 @@ void mano_del_fuego(void)
 					//wah_svf.F += 0.0050;
 					//imu_dat.Xaccel_real_prev = imu_dat.Xaccel_real;
 					//imu_dat.Xaccel_real = imu_dat.Xaccel_real + (float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev;  //*0.0000305185;
-					wah_svf.F += (wah_svf.Fupper)*((float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev)*0.0000305185*0.45;
+					wah_svf.F += (wah_svf.Fupper)*((float)imu_dat.Xaccel -  (float)imu_dat.XaccelPrev)*0.0000305185*0.35;
 					if(wah_svf.F > wah_svf.Fupper)
 					{
 						wah_svf.F = wah_svf.Fupper;
@@ -980,7 +986,7 @@ void mano_del_fuego(void)
 				{
 					if(activateEffect !=0 && effectsel == ARPEGG)
 					{
-						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.065;
+						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.075;
 					}
 					else if (activateEffect !=0 && effectsel == PITCHUP)
 					{
@@ -1004,11 +1010,11 @@ void mano_del_fuego(void)
 						{
 							imu_dat.Xg_pos = 0.0;
 						}
-						if(imu_dat.Xg_pos < 0.35)
+						if(imu_dat.Xg_pos < 0.30)
 						{
 							pitch_shift_up.pitch = 0;
 						}
-						else if(imu_dat.Xg_pos < 0.70)
+						else if(imu_dat.Xg_pos < 0.60)
 						{
 							pitch_shift_up.pitch = 1;
 						}
@@ -1049,6 +1055,10 @@ void mano_del_fuego(void)
   			d_flag = 0;
   			// *** circular buffer uart_i *** //
   	  	  	uart_i = 0x03ff & (uart_i + 1);
+
+  	  	    connect_count = 0x7fff;
+  	  		GpioDataRegs.GPADAT.bit.GPIO11 = 1;
+
 
   		}
 
@@ -1120,6 +1130,14 @@ void mano_del_fuego(void)
 						CpuTimer1.RegsAddr->TCR.bit.TSS = 0;				// start the timer
 						pitch_shift_up.PerReset = 0;
 					}
+				}
+			}
+			if(connect_count != 0)
+			{
+				connect_count--;
+				if(connect_count == 0)
+				{
+					GpioDataRegs.GPADAT.bit.GPIO11 = 0;
 				}
 			}
 			t1_flag=0;
@@ -1775,30 +1793,30 @@ pitch_shift_up.Arpeggios[2][1]  = 28.0;
 pitch_shift_up.Arpeggios[2][2]  = 12.5;
 pitch_shift_up.Arpeggios[2][3]  = 5;
 // Minor Sweep Arpeggio
-pitch_shift_up.Arpeggios[3][0]  = 0.0;
+pitch_shift_up.Arpeggios[3][0]  = 200.0;
 pitch_shift_up.Arpeggios[3][1]  = 16.0;
 pitch_shift_up.Arpeggios[3][2]  = 8.5;
 pitch_shift_up.Arpeggios[3][3]  = 5;
 // Major Sweep Arpeggio
-pitch_shift_up.Arpeggios[4][0]  = 0.0;
+pitch_shift_up.Arpeggios[4][0]  = 200.0;
 pitch_shift_up.Arpeggios[4][1]  = 16.0;
 pitch_shift_up.Arpeggios[4][2]  = 6.5;
 pitch_shift_up.Arpeggios[4][3]  = 5;
-// Phrygian Arpeggio
-pitch_shift_up.Arpeggios[5][0]  = 0.0;
+// Blues
+pitch_shift_up.Arpeggios[5][0]  = 200.0;
 pitch_shift_up.Arpeggios[5][1]  = 28.0;
-pitch_shift_up.Arpeggios[5][2]  = 10.5;
-pitch_shift_up.Arpeggios[5][3]  = 5;
-// Dorian Arpeggio
-pitch_shift_up.Arpeggios[5][0]  = 0.0;
-pitch_shift_up.Arpeggios[5][1]  = 28.0;
-pitch_shift_up.Arpeggios[5][2]  = 10.5;
-pitch_shift_up.Arpeggios[5][3]  = 5;
-// Pentagon
-pitch_shift_up.Arpeggios[6][0]  = 0.0;
-pitch_shift_up.Arpeggios[6][1]  = 28.0;
-pitch_shift_up.Arpeggios[6][2]  = 10.5;
-pitch_shift_up.Arpeggios[6][3]  = 5;
+pitch_shift_up.Arpeggios[5][2]  = 16.0;
+pitch_shift_up.Arpeggios[5][3]  = 12.5;
+// Chromatic
+pitch_shift_up.Arpeggios[6][0]  = 200.0;
+pitch_shift_up.Arpeggios[6][1]  = 90.0;
+pitch_shift_up.Arpeggios[6][2]  = 42.0;
+pitch_shift_up.Arpeggios[6][3]  = 28.0;
+// Insane
+pitch_shift_up.Arpeggios[7][0]  = 200.0;
+pitch_shift_up.Arpeggios[7][1]  = 5;
+pitch_shift_up.Arpeggios[7][2]  = 2.5;
+pitch_shift_up.Arpeggios[7][3]  = 1.5;
 
 
 // *** Pitch Shift Up Initializations *** //

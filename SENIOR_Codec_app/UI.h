@@ -60,7 +60,7 @@ void Clear_Buttons();
 #define P1 1
 #define P2 2
 
-#define NumFX 15
+#define NumFX 16
 
 #define BYPASS 0
 #define WAH 1
@@ -77,6 +77,7 @@ void Clear_Buttons();
 #define PHASER      12
 #define VIBRATO     13
 #define ARPEGG      14
+#define GYROWAH      15
 
 #define EXIT_RF 0
 #define EXIT_Setting 1

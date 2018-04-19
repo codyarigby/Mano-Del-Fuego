@@ -367,7 +367,7 @@ struct TREMOLO {
 Uint16 t1_flag = 0;				// timer 1 flag set in timer interrupt
 Uint16 r_flag1 = 0; 			// flag set in interrupt to que data process
 Uint16 r_flag2 = 0; 			// flag set in interrupt to que data process
-Uint16 d_flag;					// flag for uart (I think)
+Uint16 d_flag = 0;					// flag for uart (I think)
 Uint16 first_interrupt = 1;   	// 1 indicates first interrupt
 Uint16 activateEffect = 0;
 Uint16 activateCounter = 0;
@@ -694,7 +694,7 @@ interrupt void local_SCIRXINTB_ISR(void) // SCI-B
 	//Uint16 activateEffect = 0;
 	//Uint16 activateCounter = 0;
 	//Uint16 deactivateCounter = 0;
-	rx_flag = true;
+	//rx_flag = true;
 	PieCtrlRegs.PIEACK.all |= PIEACK_GROUP9;       // Issue PIE ack
 
 	//connect_count = 0x7fff;
@@ -845,7 +845,7 @@ void mano_del_fuego(void)
 
 
 
-	    activateEffect = 1;
+	    //activateEffect = 1;
 		if(state_change_flag)
   		{
   			state_change_flag = false;
@@ -882,7 +882,7 @@ void mano_del_fuego(void)
 			}
 			*/
   			//logic that handles activating an effect
-  			/*
+
 			if((scib_rx & 0x0001) && activateEffect == 0)
 			{
 				activateCounter++;
@@ -921,7 +921,28 @@ void mano_del_fuego(void)
 					deactivateCounter = 0;
 				}
 			}
-			*/
+
+			if(Global_Board_State.Flex_State == HOLD_MODE)
+			{
+			    if(activateEffect == 1)
+			    {
+			        effectsel = effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
+			    }
+			    else if (activateEffect == 0)
+			    {
+			        effectsel = BYPASS;
+			    }
+			}
+
+			else if(Global_Board_State.Flex_State == MOD_MODE)
+			{
+                effectsel = effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
+			}
+
+            else if(Global_Board_State.Flex_State == PASS_MODE)
+            {
+                activateEffect = 1;
+            }
 
 
   			if(effectsel == WAH)
@@ -1072,6 +1093,7 @@ void mano_del_fuego(void)
 
   	  	    connect_count = 0x7fff;
   	  		GpioDataRegs.GPADAT.bit.GPIO11 = 1;
+  	  		rx_flag = 1;
 
 
   		}
@@ -1156,6 +1178,7 @@ void mano_del_fuego(void)
 				if(connect_count == 0)
 				{
 					GpioDataRegs.GPADAT.bit.GPIO11 = 0;
+					rx_flag = 0;
 				}
 			}
 			t1_flag=0;

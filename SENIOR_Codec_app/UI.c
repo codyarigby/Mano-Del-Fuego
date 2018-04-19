@@ -26,6 +26,8 @@
 
 #include "UI.h"
 #include "notes.h"
+#include "MDF_init.h"
+#include "pics.h"
 
 Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
@@ -607,9 +609,37 @@ bool BT_Connect()
 	//rx_flag = false;
 
     //DELAY_US(1000000);
+    scib_xmit('$');
+    DELAY_US(10000L);
+    scib_xmit('$');
+    DELAY_US(10000L);
+    scib_xmit('$');
+    DELAY_US(10000L);
+
+    scib_xmit('C');
+    DELAY_US(10000L);
+    scib_xmit('F');
+    DELAY_US(10000L);
+    scib_xmit('R');
+    DELAY_US(10000L);
+    scib_xmit('\n');
+    DELAY_US(10000L);
+
+    scib_xmit('C');
+    DELAY_US(10000L);
+    scib_xmit('F');
+    DELAY_US(10000L);
+    scib_xmit('R');
+    DELAY_US(10000L);
+    scib_xmit('\n');
+    DELAY_US(10000L);
+
+    //rx_flag = false;
+
 	long jj;
 	long j;
-	for(jj=0; jj < 30; jj++)
+	int cnt = 0;
+	for(jj=0; jj < 40; jj++)
 		{
 		for(j=0; j < 300000; j++)
 		{
@@ -620,6 +650,9 @@ bool BT_Connect()
 			}
 		}
 	}
+
+
+
     /*init_uart();
 
     scib_xmit('$');
@@ -713,8 +746,19 @@ void Main_Mode()
 void Tuner()
 {
     Global_Board_State.boardMode = Tuner_Mode;
-    UI_LCD_Tuner_mode();
-    UI_LCD_Tune(-1);
+    //UI_LCD_Tuner_mode();
+    //UI_LCD_Tune(-1);
+
+    LCD_DrawRectangle(MIN_SCREEN_X, MAX_SCREEN_X, MIN_SCREEN_Y, MAX_SCREEN_Y, LCD_BLACK);
+    int g, h;
+    for(g = 0; g < 40; g++)
+    {
+        for(h = 0; h < 30 ; h++)
+        {
+            //LCD_SetPoint(i, j, fire_pic[i/2][j/2]);
+            LCD_DrawRectangle(g*8, g*8+7, h*8, h*8+7, fire_pic[g][h]);
+        }
+    }
 }
 
 void Initialize_Board()
@@ -722,8 +766,8 @@ void Initialize_Board()
 
     State_Initialize();
     Attempt_RF_Connect();
-    while(Global_Board_State.boardMode == RF_Connect_Mode)
-    {
+//    while(Global_Board_State.boardMode == RF_Connect_Mode)
+//    {
         /*while(Button1 == false && Button2 == false){};
         if(Button1)
         {
@@ -735,7 +779,7 @@ void Initialize_Board()
             Clear_Buttons();
             break;
         }*/
-    }
+//    }
     GpioDataRegs.GPADAT.bit.GPIO7 = 0;
     GpioDataRegs.GPADAT.bit.GPIO7 = 0;
     GpioDataRegs.GPADAT.bit.GPIO8 = 0;

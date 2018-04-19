@@ -213,6 +213,7 @@ unsigned long long int echo_Buffer_size = 32767; // and these pointers with 0x7F
 // 							Pitch Shifting variables
 // *******************************************************************************************************
 struct PITCH_SHIFT{
+	Uint16 freeze;
 	Uint16 return_flag;     // flag goes off when a zero crossing is detected in the search window and its time to jump to a return zero crossing
 	Uint16 zcross_i;		// index for the zero crossing fifo
 	Uint16 zcross_detect_search;
@@ -992,7 +993,7 @@ void mano_del_fuego(void)
 
   			else if(effectsel == PITCHUP || effectsel == ARPEGG || effectsel == PITCHDOWN)
 			{
-  				pitch_shift_up.pitch_prev = pitch_shift_up.pitch;
+				pitch_shift_up.pitch_prev = pitch_shift_up.pitch;
 
 				if(imu_dat.Xgyro > 250 || imu_dat.Xgyro < -250)
 				{
@@ -1000,10 +1001,11 @@ void mano_del_fuego(void)
 					{
 						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.075;
 					}
-					else if (activateEffect !=0 && effectsel == PITCHUP)
+					else if ((activateEffect !=0 && effectsel == PITCHUP) || (activateEffect !=0 && effectsel == PITCHDOWN))
 					{
 						imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.0185;
 					}
+
 					// *** Set limits to the gyro position *** //
 					if(imu_dat.Xg_pos < 0.0)
 					{
@@ -1086,17 +1088,17 @@ void mano_del_fuego(void)
 				if(fb == 1)
 				{
 					flang.delay++;
-					if(flang.delay > 1024 + flang.delay_range[p1])
+					if(flang.delay > 2048 + flang.delay_range[p1])
 					{
-						flang.delay = 1024 + flang.delay_range[p1];
+						flang.delay = 2048 + flang.delay_range[p1];
 					}
 				}
 				else if(fb == 0)
 					{
 						flang.delay--;
-						if(delay < 1024 - flang.delay_range[p1])
+						if(delay < 2048 - flang.delay_range[p1])
 						{
-							flang.delay = 1024 - flang.delay_range[p1];
+							flang.delay = 2048 - flang.delay_range[p1];
 						}
 					}
 				if(timer_reset == 1)
@@ -1109,21 +1111,24 @@ void mano_del_fuego(void)
 					timer_reset = 0;
 				}
 			}
-			else if(effectsel == PITCHDOWN)
-			{
-				//pitch_shift.count_delay1 = 0x0fff  & (pitch_shift.count_delay1 + 1); // 0x0000 - 0x0fff
-			}
+
 
 
 			else if(effectsel == ARPEGG || effectsel == PITCHUP || effectsel == PITCHDOWN)
 			{
 				if(effectsel == PITCHDOWN)
 				{
-					pitch_shift_up.count_delay = pitch_shift_up.delay_Ovfl & (pitch_shift_up.count_delay + 1); // 0x0000 - 0x0fff
+					if (pitch_shift_up.freeze == 0)
+					{
+						pitch_shift_up.count_delay = pitch_shift_up.delay_Ovfl & (pitch_shift_up.count_delay + 1); // 0x0000 - 0x0fff
+					}
 				}
 				else
 				{
-					pitch_shift_up.count_delay = pitch_shift_up.delay_Ovfl & (pitch_shift_up.count_delay - 1); // 0x0000 - 0x0fff
+					if (pitch_shift_up.freeze == 0)
+					{
+						pitch_shift_up.count_delay = pitch_shift_up.delay_Ovfl & (pitch_shift_up.count_delay - 1); // 0x0000 - 0x0fff
+					}
 				}
 
 				if(activateEffect != 0)
@@ -1144,6 +1149,7 @@ void mano_del_fuego(void)
 					}
 				}
 			}
+
 			if(connect_count != 0)
 			{
 				connect_count--;
@@ -1432,85 +1438,24 @@ void mano_del_fuego(void)
   			// 							Pitch Shifting variables
   			// *******************************************************************************************************
 
-  			else if (effectsel == PITCHUP || effectsel == ARPEGG || effectsel == PITCHDOWN)
+
+            else if (effectsel == PITCHUP || effectsel == ARPEGG || effectsel == PITCHDOWN)
 			{
-  				/*
-  				struct PITCH_SHIFT{
-  					Uint16 zcross_i;		// index for the zero crossing fifo
-  					Uint16 zcross_detect;   // for detecting a positive zero crossing
-  					Uint16 Direction;       // pitch shifting up or down
-  					float PerUpper;      	// upper period limit
-  					float PerLower;      	// lower period limit
-  					float Per;           	// current period
-  					Uint16 count_delay; 	// delay counter (tracks current delay behind the sample pointer)
-  					Uint16 pitch_index; 	// index of the pitch shifted sample
-  					int16  pitch_samp_prev; // previous sample of pitch shifting sample
-  					Uint16 PerReset;        // reset the period for MCM control
-  					Uint16 delay_Ovfl;      // delay overflow value (anded with the counte delay +- 1) absolute max delay the pitch pointer can travel
-  					Uint16 delay_return;    // for both pitch shifting up and down. for up, this is the delay we approximately want to return to
-  					Uint16 search_window;   // the threshold for when we need to start looking for a pair of zero crossings
-  				} pitch_shift_down;
-
-  				struct PITCH_SHIFT pitch_shift_up // struct for pitch shifting up
-
-
-  				// *** shared by both pitch shifter and delay based effects *** //
-  				int16 ext_prev;
-  				Uint16 ext_index;
-
-  				// *** variables used in zcross calculation *** //
-  				int16 closest_d;
-  				int16 temp_d;
-  				int16 closest_d;
-  				Uint16 temp_index;
-  				Uint16 temp_count_offset;
-
-  				struct SAMPLE {
-  					   int16 samp[5];
-  					   Uint16 index[5];
-  					   Uint16 count;
-  				} sample;
-
-  				struct SAMPLE sample_delay // This structure is used to record the samples between a zero crossing in the
-  				// return range.  When a zero crossing is detected for positive or negative, a function finds the pair of
-  				// samples where the actual crossing occurs and gets the positive side index for pos zero crossing
-  				// and the negative index for nagative zero crossing
-
-  				struct ZCROSS_POS {
-  				   int16   cross_samp[5];
-  				   Uint16  cross_index[5];
-  				   Uint16  count_delay;
-  				} zcross_pos;
-
-
-  				// *** this is the structure that is used for the zero crossing detector for the pitch shifter *** //
-  				struct ZCROSS_NEG{
-  					   Uint16  pos_zcross_i; 		// index of the positive side of the positive zero crossing
-  					   Uint16  neg_zcross_i;        // index of the negative side of the negative zero crossing
-  					   Uint16  distance;			// distance in samples between the positive and the negative zero crossings
-  					   Uint16  peak;				// the peak value between the positive and negative zero crossing
-  				};
-
-  				// *** Zcross FIFO *** //
-  				struct ZCROSS_NEG zcross_return[4]; // Array of zero crossing to return to
-  				struct ZCROSS_NEG zcross_pitch      // the zero crossing that is captured when look for a return spot
-  				*/
-
-  				pitch_shift_up.pitch_index = 0x7fff & (ext_index - pitch_shift_up.count_delay);
+				pitch_shift_up.pitch_index = 0x7fff & (ext_index - pitch_shift_up.count_delay);
 
 				// *** delay samples for pitch shiftng upward *** //
 				// *** this is how we detect our zero crossings ***//
-			    sample_delay.samp[0] = sample_delay.samp[4];
-			    sample_delay.index[0]= sample_delay.index[4];
-			    if(effectsel == PITCHDOWN)
-			    {
-			    	sample_delay.index[4] = ext_index;
-			    }
-			    else
-			    {
-			    	sample_delay.index[4] = 0x7fff & (ext_index - pitch_shift_up.delay_return);
-			    }
-			    sample_delay.samp[4]  = ext_Buffer[sample_delay.index[4]];
+				sample_delay.samp[0] = sample_delay.samp[4];
+				sample_delay.index[0]= sample_delay.index[4];
+				if(effectsel == PITCHDOWN)
+				{
+					sample_delay.index[4] = ext_index;
+				}
+				else
+				{
+					sample_delay.index[4] = 0x7fff & (ext_index - pitch_shift_up.delay_return);
+				}
+				sample_delay.samp[4]  = ext_Buffer[sample_delay.index[4]];
 
 				// *** Positive Zero Crossing Occured at return location *** //
 				if(sample_delay.samp[4] > 0 && sample_delay.samp[0] < 0)
@@ -1555,7 +1500,7 @@ void mano_del_fuego(void)
 					// record the negative zero crossing INDEX
 					zcross_return[pitch_shift_up.zcross_i].neg_zcross_i = sample_delay.index[4];
 
-				    // solve for the distances between the negative zcross and positivie zcross in raw samples
+					// solve for the distances between the negative zcross and positivie zcross in raw samples
 					if(zcross_return[pitch_shift_up.zcross_i].pos_zcross_i < zcross_return[pitch_shift_up.zcross_i].neg_zcross_i)
 					{
 						// in the case where the pos is behind the neg in the buffer without looparound
@@ -1622,7 +1567,11 @@ void mano_del_fuego(void)
 						pitch_shift_up.zcross_detect_search = 0;
 
 						// trigger the jump/return of the pitch pointer to a return spot!
-						pitch_shift_up.return_flag 			= 1;
+						// if froze do not set the return flag
+						if (pitch_shift_up.freeze == 0)
+						{
+							pitch_shift_up.return_flag = 1;
+						}
 					}
 				}
 
@@ -1681,30 +1630,32 @@ void mano_del_fuego(void)
 				}
 
 
-				if(pitch_shift_up.count_delay == 1)
-				{
-					pitch_shift_up.count_delay = 0;
-				}
+				//if(pitch_shift_up.count_delay == 1)
+				//{
+				//	pitch_shift_up.count_delay = 0;
+				//}
 
 				if((pitch_shift_up.pitch == 0 || activateEffect == 0) && effectsel == ARPEGG)
 				{
 					McbspaRegs.DXR2.all = *ch1_ptr;
 				}
-				else if(imu_dat.Xg_pos < 0.025 && effectsel == PITCHUP)
+				else if((imu_dat.Xg_pos < 0.025 && effectsel == PITCHUP) || (imu_dat.Xg_pos < 0.025 && effectsel == PITCHDOWN))
 				{
-					McbspaRegs.DXR2.all = *ch1_ptr;
+					pitch_shift_up.freeze = 1;
 				}
 				else
 				{
 					McbspaRegs.DXR2.all = (ext_Buffer[pitch_shift_up.pitch_index]);
 					//McbspaRegs.DXR2.all = sample_delay.samp[4];
 					//McbspaRegs.DXR1.all = 0x8000 & (zcrosstrig - 1);
+					pitch_shift_up.freeze = 0;
 				}
 				McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
 
 				// previous value of the sample pointer sample
 				pitch_shift_up.pitch_samp_prev= ext_Buffer[pitch_shift_up.pitch_index];
 			}
+
   			// *** finish audio buffer *** //
   			ext_prev = ext_Buffer[ext_index];
 			sample.samp[0] = ext_prev;
@@ -1723,16 +1674,16 @@ void mano_del_fuego(void)
 void init_structs(void)
 {
 	// *** initialize flanger structure *** //
-	flang.speed[0] = 500.0;    		// 100us default
-	flang.speed[1] = 750.0;    		// 100us default
-	flang.speed[2] = 1000.0;    		// 100us default
-	flang.speed[3] = 1200.0;    		// 100us default
-	flang.speed[4] = 1300.0;    		// 100us default
-	flang.speed[5] = 1500.0;    		// 100us default
-	flang.speed[6] = 1800.0;    		// 100us default
-	flang.speed[7] = 2000.0;    		// 100us default
-	flang.speed[8] = 3000.0;    		// 100us default
-	flang.speed[9] = 4000.0;    		// 100us default
+	flang.speed[0] = 1000.0;    		// 100us default
+	flang.speed[1] = 1600.0;    		// 100us default
+	flang.speed[2] = 2200.0;    		// 100us default
+	flang.speed[3] = 2800.0;    		// 100us default
+	flang.speed[4] = 3400.0;    		// 100us default
+	flang.speed[5] = 4000.0;    		// 100us default
+	flang.speed[6] = 5000.0;    		// 100us default
+	flang.speed[7] = 6000.0;    		// 100us default
+	flang.speed[8] = 7000.0;    		// 100us default
+	flang.speed[9] = 8000.0;    		// 100us default
 	flang.delay_range[0] = 32;
 	flang.delay_range[1] = 64;
 	flang.delay_range[2] = 128;
@@ -1827,11 +1778,11 @@ pitch_shift_up.Arpeggios[6][0]  = 200.0;
 pitch_shift_up.Arpeggios[6][1]  = 90.0;
 pitch_shift_up.Arpeggios[6][2]  = 42.0;
 pitch_shift_up.Arpeggios[6][3]  = 28.0;
-// Insane
+// Egypt
 pitch_shift_up.Arpeggios[7][0]  = 200.0;
-pitch_shift_up.Arpeggios[7][1]  = 5;
-pitch_shift_up.Arpeggios[7][2]  = 2.5;
-pitch_shift_up.Arpeggios[7][3]  = 1.5;
+pitch_shift_up.Arpeggios[7][1]  = 90.0;
+pitch_shift_up.Arpeggios[7][2]  = 20.0;
+pitch_shift_up.Arpeggios[7][3]  = 16.0;
 
 
 // *** Pitch Shift Up Initializations *** //

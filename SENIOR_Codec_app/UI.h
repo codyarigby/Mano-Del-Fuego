@@ -114,9 +114,9 @@ typedef struct
 extern Board_State Global_Board_State, Prev_Board_State;
 extern Effect Global_FXLib[NumFX];
 extern char FX_names[NumFX][11];
-extern char param1_names[NumFX][4];
+extern char param1_names[NumFX][7];
 extern int value1_init[NumFX];
-extern char param2_names[NumFX][4];
+extern char param2_names[NumFX][7];
 extern int value2_init[NumFX];
 
 extern bool Button1;

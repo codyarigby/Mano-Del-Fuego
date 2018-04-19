@@ -29,10 +29,10 @@
 
 Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
-char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distort", "Fuzz", "Chorus", "Echo", "Tremolo", "BBoost", "Phaser", "Vibrato", "Arpegg", "GyroWah"};
-char param1_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
+char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distor", "Fuzz", "Chorus", "Echo", "Tremol", "BBoost", "Phaser", "Vibrato", "Arpegg", "GyroWah"};
+char param1_names[NumFX][7] = {"N/A", "Q", "TBD", "Delay", "TBD", "TBD", "Levels", "Th-Hi", "DlyPow", "Delay", "Period", "Freq", "Freq", "TBD", "TBD", "TBD"};
 int value1_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-char param2_names[NumFX][4] = {"N/A", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD", "TBD"};
+char param2_names[NumFX][7] = {"N/A", "TBD", "TBD", "Speed", "TBD", "TBD", "Gain", "Th-Lo", "Delay", "FBPow", "Ampl", "Gain", "FBGain", "TBD", "TBD", "TBD"};
 int value2_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 bool Button1 = false;
@@ -719,6 +719,7 @@ void Tuner()
 
 void Initialize_Board()
 {
+
     State_Initialize();
     Attempt_RF_Connect();
     while(Global_Board_State.boardMode == RF_Connect_Mode)
@@ -735,6 +736,9 @@ void Initialize_Board()
             break;
         }*/
     }
+    GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO8 = 0;
     //Main_Mode();
 
 }
@@ -902,34 +906,43 @@ void State_Change()
             Global_Board_State = Prev_Board_State;
             Main_Mode();
         }
-        if(Button3 && Button4)
+        if(Button3 || Button4)
         {
-            Clear_Buttons();
-            Global_Board_State.Flex_State++;
-            if(Global_Board_State.Flex_State > 2) Global_Board_State.Flex_State = 0;
-            UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
-        }
-        if(Button3)
-        {
-        	DELAY_US(300000);
-            Clear_Buttons();
-            Global_Board_State.FX[FX_Modify].value1++;
-            if(Global_Board_State.FX[FX_Modify].value1 > 9) Global_Board_State.FX[FX_Modify].value1 = 0;
-            char val1[] = "0";
-            val1[0] += Global_Board_State.FX[FX_Modify].value1;
-            UI_LCD_Effect_Change_Param(P1, val1);
+            DELAY_US(300000);
+            int f;
+            for(f = 0; f < 30000; f++)
+            {
 
-        }
-        if(Button4)
-        {
-        	DELAY_US(300000);
-            Clear_Buttons();
-            Global_Board_State.FX[FX_Modify].value2++;
-            if(Global_Board_State.FX[FX_Modify].value2 > 9) Global_Board_State.FX[FX_Modify].value2 = 0;
-            char val2[] = "0";
-            val2[0] += Global_Board_State.FX[FX_Modify].value2;
-            UI_LCD_Effect_Change_Param(P2, val2);
+            }
+            if(Button3 && Button4)
+            {
+                Clear_Buttons();
+                Global_Board_State.Flex_State++;
+                if(Global_Board_State.Flex_State > 2) Global_Board_State.Flex_State = 0;
+                UI_LCD_Flex_Mode_Change(Global_Board_State.Flex_State);
+            }
+            if(Button3)
+            {
+                //DELAY_US(300000);
+                Clear_Buttons();
+                Global_Board_State.FX[FX_Modify].value1++;
+                if(Global_Board_State.FX[FX_Modify].value1 > 9) Global_Board_State.FX[FX_Modify].value1 = 0;
+                char val1[] = "0";
+                val1[0] += Global_Board_State.FX[FX_Modify].value1;
+                UI_LCD_Effect_Change_Param(P1, val1);
 
+            }
+            if(Button4)
+            {
+                //DELAY_US(300000);
+                Clear_Buttons();
+                Global_Board_State.FX[FX_Modify].value2++;
+                if(Global_Board_State.FX[FX_Modify].value2 > 9) Global_Board_State.FX[FX_Modify].value2 = 0;
+                char val2[] = "0";
+                val2[0] += Global_Board_State.FX[FX_Modify].value2;
+                UI_LCD_Effect_Change_Param(P2, val2);
+
+            }
         }
         if(ButtonUp)
         {

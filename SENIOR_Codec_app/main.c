@@ -459,7 +459,7 @@ void main(void)
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
    for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
-   for(kk=0; k<echo_Buffer_size; k++) { echo_Buffer[k] = 0xEEEE; }
+   for(kk=0; kk<echo_Buffer_size; kk++) { echo_Buffer[kk] = 0xEEEE; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
 
@@ -740,6 +740,7 @@ interrupt void local_D_INTCH1_ISR(void)		// DMA Ch1 - McBSP-A Rx
 interrupt void local_XINT1_ISR(void)
 {
 	Xint_count++;
+	DELAY_US(50000);
 	if(GpioDataRegs.GPADAT.bit.GPIO0 == 0)
 	{
 		// "Button Up" has been pressed
@@ -1287,11 +1288,12 @@ void mano_del_fuego(void)
                 int j;
                 //int levels = gyro_vol * 20;
                 dist = x;
-                for(j = 0; j < 5; j++)
+                for(j = 0; j < (1 + p1); j++)
                 {
-                    dist = 16000.0 * atan(x/(14000.0));
+                    dist = 16000.0 * atan(x/(16000.0 - (500.0 * p2)));
                     x = dist;
                 }
+                dist = dist * (1.0 + gyro_vol);
                 //dist = 32000*(3*(x/32000)/2 * (1 - (x/32000)*(x/32000)/3));
                 //dist = 32000*(abs(2*x/32000) - (x/32000)*(x/32000)) * sgn;
                 if(dist > 32767.0) dist = 32767.0;
@@ -1320,9 +1322,9 @@ void mano_del_fuego(void)
                 y1_1 = y1;
 
                 float fc = 25.0;
-                float fb = 5.0;
+                float fb = 2.5*(p1+1);
                 float fs = 48000.0;
-                float G = 46*gyro_vol;
+                float G = (38.0 + (p2+1))*gyro_vol;
                 float d = -1*cos(2*3.14*fc/fs);
                 float V0 = pow(10, G/20);
                 float H0 = V0-1.0;
@@ -1338,14 +1340,14 @@ void mano_del_fuego(void)
             else if (effectsel == ECHO)
             {
                 static unsigned long long int echo_index = 0;
-                unsigned long long int phase_delay[4] = {16383, 32767, 65535, 131071};
+                unsigned long long int phase_delay[4] = {16383/4*(p1+1), 32767/4*(p1+1), 65535/4*(p1+1), 131071/4*(p1+1)};
                 int16 phase_out = ((*ch1_ptr)/15)*5;
                 int j;
                 for(j = 0; j < 4; j++)
                 {
                     long long int phase_index = (echo_index - phase_delay[j]) & 0x1FFFF;
                     if(phase_index < 0) phase_index += 131072;
-                    phase_out += (echo_Buffer[phase_index]/15)*(4-j)*gyro_vol*1.5;
+                    phase_out += (echo_Buffer[phase_index]/15)*(4-j)*gyro_vol*(1.0 + 0.1*p2);
                 }
 
                 echo_Buffer[echo_index] = phase_out;
@@ -1356,7 +1358,7 @@ void mano_del_fuego(void)
             }
             else if (effectsel == CHORUS)
             {
-                int phase_delay[4] = {2400, 4800, 7200, 9600};
+                int phase_delay[4] = {1600*(p2+1)/2, 3200*(p2+1)/2, 4800*(p2+1)/2, 6400*(p2+1)/2};
                 int16 phase_out = 0;
                 int j;
                 for(j = 0; j < 4; j++)
@@ -1365,16 +1367,16 @@ void mano_del_fuego(void)
                     if(phase_index < 0) phase_index += 32768;
                     phase_out += (ext_Buffer[phase_index]/15*(4-j));
                 }
-                phase_out = (2*gyro_vol)*phase_out + (*ch1_ptr)/15*(15 - 10*gyro_vol);
+                phase_out = ((2 + 0.2*p1)*gyro_vol)*phase_out + (*ch1_ptr)/15*(15 - 10*gyro_vol);
                 McbspaRegs.DXR2.all = phase_out;
                 McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
             }
             else if (effectsel == TREMOLOO)
             {
                   static float trem_index = 0.0;
-                  float trem_len = 48000.0 - 40000.0 * gyro_vol;
+                  float trem_len = (p1/3.0 + 1.0)*(48000.0 - 40000.0 * gyro_vol);
                   float trem_out = (float)(*ch1_ptr);
-                  trem_out *= (0.4*cos(2*3.14*trem_index/trem_len) + 0.6);
+                  trem_out *= ((0.1 * (p2 + 1))*cos(2*3.14*trem_index/trem_len) + (1.0 - (0.1 * (p2 + 1))));
                   trem_index += 1.0;
                   if(trem_index > trem_len) trem_index = 0.0;
                   McbspaRegs.DXR2.all = (int16)trem_out;
@@ -1382,10 +1384,10 @@ void mano_del_fuego(void)
             }
             else if (effectsel == FUZZ)
             {
-                  float gain = 16.0 - 15.0*gyro_vol;
+                  float gain = 16.0 - 15.0*(gyro_vol*gyro_vol*gyro_vol*gyro_vol);
                   int16 fuzz_out = (int16)(gain * (*ch1_ptr));
-                  int16 thresh_high = 1000 + (int16)(15000.0 * gyro_vol);
-                  int16 thresh_low = -1 * thresh_high;
+                  int16 thresh_high = (10000 - p1*1000) + (int16)(15000.0 * gyro_vol);
+                  int16 thresh_low = -1 * ((10000 - p2*1000) + (int16)(15000.0 * gyro_vol));
                   if(fuzz_out > thresh_high) fuzz_out = thresh_high;
                   else if(fuzz_out < thresh_low) fuzz_out = thresh_low;
                   McbspaRegs.DXR2.all = (int16)fuzz_out;
@@ -1400,6 +1402,8 @@ void mano_del_fuego(void)
                   static float depth = 1.0;
                   static float zm1 = 0.0;
                   static float lfoInc = 2.0 * 3.14 * 0.5 / 48000.0;
+                  fb = 0.5 + (0.05) * (p2);
+                  //lfoInc = 2.0 * 3.14 * (0.5 * (p1 + 1)) / 48000.0;
                   float d  = dmin + (dmax-dmin) * ((sin( lfoPhase ) + 1.0)/2.0);
                   lfoPhase += lfoInc;
                   if( lfoPhase >= 3.14 * 2.0 ) lfoPhase -= 3.14 * 2.0;
@@ -1418,7 +1422,7 @@ void mano_del_fuego(void)
                       alps_zm1[j] = y * alps_delay[j] + in_samp;
                   }
                   zm1 = y;
-                  lfoInc = 2.0 * 3.14 * 4.0 / 48000.0 * imu_dat.Xaccel/32000.0;
+                  lfoInc = 2.0 * 3.14 * (2.0 + 0.5 * (p1)) / 48000.0 * imu_dat.Xaccel/32000.0;
                   McbspaRegs.DXR2.all = (int16)(in_samp + depth*y);
                   McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
             }

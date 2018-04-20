@@ -460,7 +460,7 @@ void main(void)
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
    for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
-   for(kk=0; kk<echo_Buffer_size; kk++) { echo_Buffer[kk] = 0xEEEE; }
+   for(kk=0; kk<echo_Buffer_size; kk++) { echo_Buffer[kk] = 0x0000; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
 
@@ -1110,17 +1110,17 @@ void mano_del_fuego(void)
 				if(fb == 1)
 				{
 					flang.delay++;
-					if(flang.delay > 2048 + flang.delay_range[p1])
+					if(flang.delay > 1024 + flang.delay_range[p1])
 					{
-						flang.delay = 2048 + flang.delay_range[p1];
+						flang.delay = 1024 + flang.delay_range[p1];
 					}
 				}
 				else if(fb == 0)
 					{
 						flang.delay--;
-						if(delay < 2048 - flang.delay_range[p1])
+						if(delay < 1024 - flang.delay_range[p1])
 						{
-							flang.delay = 2048 - flang.delay_range[p1];
+							flang.delay = 1024 - flang.delay_range[p1];
 						}
 					}
 				if(timer_reset == 1)
@@ -1658,13 +1658,14 @@ void mano_del_fuego(void)
 				//	pitch_shift_up.count_delay = 0;
 				//}
 
-				if((pitch_shift_up.pitch == 0 || activateEffect == 0) && effectsel == ARPEGG)
-				{
-					McbspaRegs.DXR2.all = *ch1_ptr;
-				}
-				else if((imu_dat.Xg_pos < 0.025 && effectsel == PITCHUP) || (imu_dat.Xg_pos < 0.025 && effectsel == PITCHDOWN))
+				//if((pitch_shift_up.pitch == 0 || activateEffect == 0) && effectsel == ARPEGG)
+				//{
+				//	McbspaRegs.DXR2.all = *ch1_ptr;
+				//}
+				if((imu_dat.Xg_pos < 0.025 && effectsel == PITCHUP) || (imu_dat.Xg_pos < 0.025 && effectsel == PITCHDOWN))
 				{
 					pitch_shift_up.freeze = 1;
+					McbspaRegs.DXR2.all = (ext_Buffer[pitch_shift_up.pitch_index]);
 				}
 				else
 				{
@@ -1767,42 +1768,42 @@ pitch_shift_up.search_window    = 1024;   // start seahc for a zero crossing to 
 // *** Initialization of Arpeggio Arrays *** //
 
 // Minor arpeggio
-pitch_shift_up.Arpeggios[0][0]  = 200.0;
+pitch_shift_up.Arpeggios[0][0]  = 2000.0;
 pitch_shift_up.Arpeggios[0][1]  = 28.0;
 pitch_shift_up.Arpeggios[0][2]  = 10.5;
 pitch_shift_up.Arpeggios[0][3]  = 5;
 // Major Arpeggio
-pitch_shift_up.Arpeggios[1][0]  = 200.0;
+pitch_shift_up.Arpeggios[1][0]  = 2000.0;
 pitch_shift_up.Arpeggios[1][1]  = 20.0;
 pitch_shift_up.Arpeggios[1][2]  = 10.5;
 pitch_shift_up.Arpeggios[1][3]  = 5;
 // Locrian Arpeggio
-pitch_shift_up.Arpeggios[2][0]  = 200.0;
+pitch_shift_up.Arpeggios[2][0]  = 2000.0;
 pitch_shift_up.Arpeggios[2][1]  = 28.0;
 pitch_shift_up.Arpeggios[2][2]  = 12.5;
 pitch_shift_up.Arpeggios[2][3]  = 5;
 // Minor Sweep Arpeggio
-pitch_shift_up.Arpeggios[3][0]  = 200.0;
+pitch_shift_up.Arpeggios[3][0]  = 2000.0;
 pitch_shift_up.Arpeggios[3][1]  = 16.0;
 pitch_shift_up.Arpeggios[3][2]  = 8.5;
 pitch_shift_up.Arpeggios[3][3]  = 5;
 // Major Sweep Arpeggio
-pitch_shift_up.Arpeggios[4][0]  = 200.0;
+pitch_shift_up.Arpeggios[4][0]  = 2000.0;
 pitch_shift_up.Arpeggios[4][1]  = 16.0;
 pitch_shift_up.Arpeggios[4][2]  = 6.5;
 pitch_shift_up.Arpeggios[4][3]  = 5;
 // Blues
-pitch_shift_up.Arpeggios[5][0]  = 200.0;
+pitch_shift_up.Arpeggios[5][0]  = 2000.0;
 pitch_shift_up.Arpeggios[5][1]  = 28.0;
 pitch_shift_up.Arpeggios[5][2]  = 16.0;
 pitch_shift_up.Arpeggios[5][3]  = 12.5;
 // Chromatic
-pitch_shift_up.Arpeggios[6][0]  = 200.0;
+pitch_shift_up.Arpeggios[6][0]  = 2000.0;
 pitch_shift_up.Arpeggios[6][1]  = 90.0;
 pitch_shift_up.Arpeggios[6][2]  = 42.0;
 pitch_shift_up.Arpeggios[6][3]  = 28.0;
 // Egypt
-pitch_shift_up.Arpeggios[7][0]  = 200.0;
+pitch_shift_up.Arpeggios[7][0]  = 2000.0;
 pitch_shift_up.Arpeggios[7][1]  = 90.0;
 pitch_shift_up.Arpeggios[7][2]  = 20.0;
 pitch_shift_up.Arpeggios[7][3]  = 16.0;

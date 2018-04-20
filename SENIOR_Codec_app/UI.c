@@ -31,10 +31,10 @@
 
 Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
-char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distor", "Fuzz", "Chorus", "Echo", "Tremol", "BBoost", "Phaser", "Vibrato", "Arpegg", "GyroWah"};
-char param1_names[NumFX][7] = {"N/A", "Q", "TBD", "Delay", "TBD", "TBD", "Levels", "Th-Hi", "DlyPow", "Delay", "Period", "Freq", "Freq", "Ampli", "TBD", "TBD"};
+char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU",    "PShftD",    "Distor",  "Fuzz",  "Chorus", "Echo",  "Tremol", "BBoost", "Phaser",  "Vibrato",  "Arpegg", "GyroWah"};
+char param1_names[NumFX][7] = {"N/A", "Q",   "N/A",   "Speed",    "Max", "Min",  "Levels",  "Th-Hi", "DlyPow", "Delay", "Period", "Freq",   "Freq",    "Ampli",    "Scale",  "N/A"};
 int value1_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-char param2_names[NumFX][7] = {"N/A", "TBD", "TBD", "Speed", "TBD", "TBD", "Gain", "Th-Lo", "Delay", "FBPow", "Ampl", "Gain", "FBGain", "Period", "TBD", "TBD"};
+char param2_names[NumFX][7] = {"N/A", "N/A", "N/A",   "Delay",    "N/A",       "N/A",      "Gain",    "Th-Lo", "Delay",  "FBPow",  "Ampl",  "Gain",   "FBGain",  "Period",   "N/A",    "N/A"};
 int value2_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 bool Button1 = false;
@@ -599,7 +599,7 @@ void State_Initialize()
     }
     Global_Board_State.RF_Connected = false;
     Global_Board_State.currentEffect = FX1;
-    Global_Board_State.Flex_State = HOLD_MODE;
+    Global_Board_State.Flex_State = MOD_MODE;
 
     DELAY_US(500000);
     int seq = 0;

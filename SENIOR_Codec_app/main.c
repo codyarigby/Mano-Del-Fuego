@@ -985,7 +985,7 @@ void mano_del_fuego(void)
 			timer_reset = 1;
   			}
 
-  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO || effectsel == GYROWAH)
+  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO || effectsel == GYROWAH || effectsel == VIBRATO)
   			{
 
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
@@ -1412,7 +1412,7 @@ void mano_del_fuego(void)
                 int16 delay, index;
                 static int mod = 0;
                 int amp = 16 + 2*p1;
-                int period = 2000.0 + 1000.0*p2;
+                int period = 2000.0 + 1000.0*gyro_vol*5.0;
                 delay = amp*sin(2*3.14*mod/period) + amp;
                 mod++;
                 if(mod > (period - 1)) mod = 0;

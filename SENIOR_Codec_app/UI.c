@@ -601,7 +601,35 @@ void State_Initialize()
     Global_Board_State.currentEffect = FX1;
     Global_Board_State.Flex_State = HOLD_MODE;
 
+    DELAY_US(500000);
+    int seq = 0;
+    int d;
+    for(i = 0; i < 5; i++)
+    {
+        seq = 0;
+        for(d = 0; d < 4; d++)
+        {
+            GpioDataRegs.GPADAT.bit.GPIO7 = seq & 0x01;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            seq++;
+            DELAY_US(50000);
+        }
+        seq--;
+        for(d = 0; d < 2; d++)
+        {
+            seq--;
+            GpioDataRegs.GPADAT.bit.GPIO7 = seq & 0x01;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
 
+            DELAY_US(50000);
+        }
+    }
+    GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+    DELAY_US(50000);
 }
 
 bool BT_Connect()

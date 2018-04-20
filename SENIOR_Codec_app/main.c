@@ -459,7 +459,7 @@ void main(void)
    // Fill the buffers with dummy data
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
-   for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
+   for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0x0000; }
    for(kk=0; kk<echo_Buffer_size; kk++) { echo_Buffer[kk] = 0x0000; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
@@ -875,12 +875,18 @@ void mano_del_fuego(void)
   			//buffer_uart[uart_i] = gyro_pos;
 
   			// logic that handles selecting between two different effects
-  			/*
+
   			if(scib_gyro & 0x0001)
 			{
-  				effectsel = (effectsel+1) & 0x0003;
+  			    int next = (Global_Board_State.currentEffect + 1) & 0x0003;
+  			    if(next == 0) Switch1 = 1;
+  			    else if (next == 1) Switch2 = 1;
+  			    else if (next == 2) Switch3 = 1;
+  			    else if (next == 3) Switch4 = 1;
+  			    State_Change();
+
 			}
-			*/
+
   			//logic that handles activating an effect
 
 			if((scib_rx & 0x0001) && activateEffect == 0)

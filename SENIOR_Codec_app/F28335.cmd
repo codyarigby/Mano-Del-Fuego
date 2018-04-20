@@ -75,8 +75,8 @@ PAGE 0:    /* Program Memory */
            /* Memory (RAM/FLASH/OTP) blocks can be moved to PAGE1 for data allocation */
 
    ZONE0       : origin = 0x004000, length = 0x001000     /* XINTF zone 0 */
-   RAML0       : origin = 0x008000, length = 0x001000     /* on-chip RAM block L0 */
-   RAML1       : origin = 0x009000, length = 0x001000     /* on-chip RAM block L1 */
+   RAML0       : origin = 0x008000, length = 0x002000     /* on-chip RAM block L0 */
+   //RAML1       : origin = 0x009000, length = 0x001000     /* on-chip RAM block L1 */
    RAML2       : origin = 0x00A000, length = 0x001000     /* on-chip RAM block L2 */
    RAML3       : origin = 0x00B000, length = 0x001000     /* on-chip RAM block L3 */
    ZONE6       : origin = 0x0100000, length = 0x100000    /* XINTF zone 6 */ 

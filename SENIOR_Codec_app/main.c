@@ -459,7 +459,7 @@ void main(void)
    // Fill the buffers with dummy data
    for(k=0; k<p_buff_size; k++) { ping_buffer[k] = 0x0000; }
    for(k=0; k<p_buff_size; k++) { pong_buffer[k] = 0x0000; }
-   for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0xEEEE; }
+   for(k=0; k<ext_Buffer_size; k++) { ext_Buffer[k] = 0x0000; }
    for(kk=0; kk<echo_Buffer_size; kk++) { echo_Buffer[kk] = 0x0000; }
    ping_buff_offset++;    		// Start at location 1
    pong_buff_offset++;    		// Start at location 1
@@ -875,12 +875,18 @@ void mano_del_fuego(void)
   			//buffer_uart[uart_i] = gyro_pos;
 
   			// logic that handles selecting between two different effects
-  			/*
+
   			if(scib_gyro & 0x0001)
 			{
-  				effectsel = (effectsel+1) & 0x0003;
+  			    int next = (Global_Board_State.currentEffect + 1) & 0x0003;
+  			    if(next == 0) Switch1 = 1;
+  			    else if (next == 1) Switch2 = 1;
+  			    else if (next == 2) Switch3 = 1;
+  			    else if (next == 3) Switch4 = 1;
+  			    State_Change();
+
 			}
-			*/
+
   			//logic that handles activating an effect
 
 			if((scib_rx & 0x0001) && activateEffect == 0)
@@ -1398,6 +1404,22 @@ void mano_del_fuego(void)
                 }
                 phase_out = ((2 + 0.2*p1)*gyro_vol)*phase_out + (*ch1_ptr)/15*(15 - 10*gyro_vol);
                 McbspaRegs.DXR2.all = phase_out;
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
+            else if (effectsel == VIBRATO)
+            {
+                int16 vib_out;
+                int16 delay, index;
+                static int mod = 0;
+                int amp = 16 + 2*p1;
+                int period = 2000.0 + 1000.0*p2;
+                delay = amp*sin(2*3.14*mod/period) + amp;
+                mod++;
+                if(mod > (period - 1)) mod = 0;
+                index = ext_index - delay;
+                if(index < 0) index += 32768;
+                vib_out = ext_Buffer[index];
+                McbspaRegs.DXR2.all = vib_out;
                 McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
             }
             else if (effectsel == TREMOLOO)

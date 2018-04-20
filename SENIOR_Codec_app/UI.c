@@ -32,9 +32,9 @@
 Board_State Global_Board_State, Prev_Board_State;
 Effect Global_FXLib[NumFX];
 char FX_names[NumFX][11] = {"Bypass", "Wah", "Volume", "Flange", "PShftU", "PShftD", "Distor", "Fuzz", "Chorus", "Echo", "Tremol", "BBoost", "Phaser", "Vibrato", "Arpegg", "GyroWah"};
-char param1_names[NumFX][7] = {"N/A", "Q", "TBD", "Delay", "TBD", "TBD", "Levels", "Th-Hi", "DlyPow", "Delay", "Period", "Freq", "Freq", "TBD", "TBD", "TBD"};
+char param1_names[NumFX][7] = {"N/A", "Q", "TBD", "Delay", "TBD", "TBD", "Levels", "Th-Hi", "DlyPow", "Delay", "Period", "Freq", "Freq", "Ampli", "TBD", "TBD"};
 int value1_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-char param2_names[NumFX][7] = {"N/A", "TBD", "TBD", "Speed", "TBD", "TBD", "Gain", "Th-Lo", "Delay", "FBPow", "Ampl", "Gain", "FBGain", "TBD", "TBD", "TBD"};
+char param2_names[NumFX][7] = {"N/A", "TBD", "TBD", "Speed", "TBD", "TBD", "Gain", "Th-Lo", "Delay", "FBPow", "Ampl", "Gain", "FBGain", "Period", "TBD", "TBD"};
 int value2_init[NumFX] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 bool Button1 = false;
@@ -601,7 +601,35 @@ void State_Initialize()
     Global_Board_State.currentEffect = FX1;
     Global_Board_State.Flex_State = HOLD_MODE;
 
+    DELAY_US(500000);
+    int seq = 0;
+    int d;
+    for(i = 0; i < 5; i++)
+    {
+        seq = 0;
+        for(d = 0; d < 4; d++)
+        {
+            GpioDataRegs.GPADAT.bit.GPIO7 = seq & 0x01;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            seq++;
+            DELAY_US(50000);
+        }
+        seq--;
+        for(d = 0; d < 2; d++)
+        {
+            seq--;
+            GpioDataRegs.GPADAT.bit.GPIO7 = seq & 0x01;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
+            GpioDataRegs.GPADAT.bit.GPIO8 = (seq & 0x02) >> 1;
 
+            DELAY_US(50000);
+        }
+    }
+    GpioDataRegs.GPADAT.bit.GPIO7 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+    GpioDataRegs.GPADAT.bit.GPIO8 = 0;
+    DELAY_US(50000);
 }
 
 bool BT_Connect()

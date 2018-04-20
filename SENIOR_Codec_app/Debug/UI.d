@@ -32,6 +32,8 @@ UI.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/math.h
 UI.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/linkage.h
 UI.obj: C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/_defs.h
 UI.obj: ../notes.h
+UI.obj: ../MDF_init.h
+UI.obj: ../pics.h
 
 ../UI.c: 
 ../UI.h: 
@@ -65,3 +67,5 @@ C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/math.h:
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/linkage.h: 
 C:/ti/ccsv6/tools/compiler/ti-cgt-c2000_15.12.1.LTS/include/_defs.h: 
 ../notes.h: 
+../MDF_init.h: 
+../pics.h: 

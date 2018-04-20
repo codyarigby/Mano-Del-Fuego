@@ -1406,6 +1406,22 @@ void mano_del_fuego(void)
                 McbspaRegs.DXR2.all = phase_out;
                 McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
             }
+            else if (effectsel == VIBRATO)
+            {
+                int16 vib_out;
+                int16 delay, index;
+                static int mod = 0;
+                int amp = 16 + 2*p1;
+                int period = 2000.0 + 1000.0*p2;
+                delay = amp*sin(2*3.14*mod/period) + amp;
+                mod++;
+                if(mod > (period - 1)) mod = 0;
+                index = ext_index - delay;
+                if(index < 0) index += 32768;
+                vib_out = ext_Buffer[index];
+                McbspaRegs.DXR2.all = vib_out;
+                McbspaRegs.DXR1.all = McbspaRegs.DXR2.all;
+            }
             else if (effectsel == TREMOLOO)
             {
                   static float trem_index = 0.0;

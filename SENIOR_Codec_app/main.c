@@ -853,6 +853,8 @@ void mano_del_fuego(void)
   			p1 = Global_Board_State.FX[Global_Board_State.currentEffect].value1;     // parameter 1
   			p2 = Global_Board_State.FX[Global_Board_State.currentEffect].value2;     // parameter 2
   			timer_reset = 1;
+  			gyro_vol = 0.0;
+  			imu_dat.Xg_pos = 0.0;
   		}
 
   		if(d_flag == 1)
@@ -995,7 +997,7 @@ void mano_del_fuego(void)
   				if(activateEffect != 0)
   				{
   					//gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
-  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.065;
+  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.095;
   					//gyro_vol = imu_dat.Xg_pos;
   				}
   				if(imu_dat.Xg_pos < 0.0)
@@ -1022,7 +1024,7 @@ void mano_del_fuego(void)
 			{
 				pitch_shift_up.pitch_prev = pitch_shift_up.pitch;
 
-				if(imu_dat.Xgyro > 250 || imu_dat.Xgyro < -250)
+				if(imu_dat.Xgyro > 350 || imu_dat.Xgyro < -350)
 				{
 					if(activateEffect !=0 && effectsel == ARPEGG)
 					{
@@ -1793,27 +1795,27 @@ pitch_shift_up.search_window    = 1024;   // start seahc for a zero crossing to 
 pitch_shift_up.Arpeggios[0][0]  = 2000.0;
 pitch_shift_up.Arpeggios[0][1]  = 28.0;
 pitch_shift_up.Arpeggios[0][2]  = 10.5;
-pitch_shift_up.Arpeggios[0][3]  = 5;
+pitch_shift_up.Arpeggios[0][3]  = 4.4;
 // Major Arpeggio
 pitch_shift_up.Arpeggios[1][0]  = 2000.0;
 pitch_shift_up.Arpeggios[1][1]  = 20.0;
 pitch_shift_up.Arpeggios[1][2]  = 10.5;
-pitch_shift_up.Arpeggios[1][3]  = 5;
+pitch_shift_up.Arpeggios[1][3]  = 4.4;
 // Locrian Arpeggio
 pitch_shift_up.Arpeggios[2][0]  = 2000.0;
 pitch_shift_up.Arpeggios[2][1]  = 28.0;
 pitch_shift_up.Arpeggios[2][2]  = 12.5;
-pitch_shift_up.Arpeggios[2][3]  = 5;
+pitch_shift_up.Arpeggios[2][3]  = 4.4;
 // Minor Sweep Arpeggio
 pitch_shift_up.Arpeggios[3][0]  = 2000.0;
 pitch_shift_up.Arpeggios[3][1]  = 16.0;
 pitch_shift_up.Arpeggios[3][2]  = 8.5;
-pitch_shift_up.Arpeggios[3][3]  = 5;
+pitch_shift_up.Arpeggios[3][3]  = 4.4;
 // Major Sweep Arpeggio
 pitch_shift_up.Arpeggios[4][0]  = 2000.0;
 pitch_shift_up.Arpeggios[4][1]  = 16.0;
 pitch_shift_up.Arpeggios[4][2]  = 6.5;
-pitch_shift_up.Arpeggios[4][3]  = 5;
+pitch_shift_up.Arpeggios[4][3]  = 4.4;
 // Blues
 pitch_shift_up.Arpeggios[5][0]  = 2000.0;
 pitch_shift_up.Arpeggios[5][1]  = 28.0;
@@ -1829,6 +1831,16 @@ pitch_shift_up.Arpeggios[7][0]  = 2000.0;
 pitch_shift_up.Arpeggios[7][1]  = 90.0;
 pitch_shift_up.Arpeggios[7][2]  = 20.0;
 pitch_shift_up.Arpeggios[7][3]  = 16.0;
+// Egypt
+pitch_shift_up.Arpeggios[8][0]  = 2000.0;
+pitch_shift_up.Arpeggios[8][1]  = 90.0;
+pitch_shift_up.Arpeggios[8][2]  = 20.0;
+pitch_shift_up.Arpeggios[8][3]  = 16.0;
+// Egypt
+pitch_shift_up.Arpeggios[9][0]  = 2000.0;
+pitch_shift_up.Arpeggios[9][1]  = 90.0;
+pitch_shift_up.Arpeggios[9][2]  = 20.0;
+pitch_shift_up.Arpeggios[9][3]  = 16.0;
 
 
 // *** Pitch Shift Up Initializations *** //

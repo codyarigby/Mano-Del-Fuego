@@ -853,6 +853,8 @@ void mano_del_fuego(void)
   			p1 = Global_Board_State.FX[Global_Board_State.currentEffect].value1;     // parameter 1
   			p2 = Global_Board_State.FX[Global_Board_State.currentEffect].value2;     // parameter 2
   			timer_reset = 1;
+  			gyro_vol = 0.0;
+  			imu_dat.Xg_pos = 0.0;
   		}
 
   		if(d_flag == 1)
@@ -995,7 +997,7 @@ void mano_del_fuego(void)
   				if(activateEffect != 0)
   				{
   					//gyro_vol += ((float)(imu_dat.Xgyro ))*0.0000031*0.07;
-  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.065;
+  					imu_dat.Xg_pos += ((float)(imu_dat.Xgyro ))*0.0000031*0.095;
   					//gyro_vol = imu_dat.Xg_pos;
   				}
   				if(imu_dat.Xg_pos < 0.0)
@@ -1022,7 +1024,7 @@ void mano_del_fuego(void)
 			{
 				pitch_shift_up.pitch_prev = pitch_shift_up.pitch;
 
-				if(imu_dat.Xgyro > 250 || imu_dat.Xgyro < -250)
+				if(imu_dat.Xgyro > 350 || imu_dat.Xgyro < -350)
 				{
 					if(activateEffect !=0 && effectsel == ARPEGG)
 					{

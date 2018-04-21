@@ -934,7 +934,7 @@ void mano_del_fuego(void)
 			{
 			    if(activateEffect == 1)
 			    {
-			        effectsel = effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
+			        effectsel = Global_Board_State.FX[Global_Board_State.currentEffect].FX_index;
 			    }
 			    else if (activateEffect == 0)
 			    {

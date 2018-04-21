@@ -202,12 +202,10 @@ void Init_gpioUI(void){
 	// *** LED Ctrl0 *** //
 	GpioCtrlRegs.GPAMUX1.bit.GPIO7 	= 0;        // GPIO
 	GpioCtrlRegs.GPADIR.bit.GPIO7 	= 1;        // output
-    GpioCtrlRegs.GPAPUD.bit.GPIO7   = 0;        // Disable pull-up
 
 	// *** LED Ctrl1 *** //
 	GpioCtrlRegs.GPAMUX1.bit.GPIO8 	= 0;        // GPIO
 	GpioCtrlRegs.GPADIR.bit.GPIO8 	= 1;        // output
-    GpioCtrlRegs.GPAPUD.bit.GPIO8   = 0;        // Disable pull-up
 
 
 	// *** These GPIO's go directly to LEDs on the User Interface *** //

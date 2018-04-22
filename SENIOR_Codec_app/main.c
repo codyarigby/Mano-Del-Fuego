@@ -208,7 +208,7 @@ Uint16 prevcountstart;
 int16 ext_Buffer[32767];
 Uint16 ext_Buffer_size = 32767; // and these pointers with 0x7FFF
 int16 echo_Buffer[131071ULL];
-unsigned long long int echo_Buffer_size = 32767; // and these pointers with 0x7FFF
+unsigned long long int echo_Buffer_size = 131071ULL; // and these pointers with 0x7FFF
 // *******************************************************************************************************
 // 							Pitch Shifting variables
 // *******************************************************************************************************
@@ -974,20 +974,8 @@ void mano_del_fuego(void)
 					//fb = 0;
 				}
   			}
-  			else if(effectsel == FLANGER)
-  			{
-  				if(imu_dat.Xgyro > 500)
-  				{
-  					fb = 0;
-  				}
-  				else if (imu_dat.Xgyro < -500)
-  				{
-  					fb = 1;
-  				}
-			timer_reset = 1;
-  			}
 
-  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO || effectsel == GYROWAH || effectsel == VIBRATO)
+  			else if(effectsel == VOLSWELL || effectsel == BASSBOOST || effectsel == TREMOLOO || effectsel == FUZZ || effectsel == DISTORTION || effectsel == CHORUS || effectsel == ECHO || effectsel == GYROWAH || effectsel == VIBRATO || effectsel == FLANGER)
   			{
 
   				//imu_dat.XgyroPrev 	= imu_dat.Xgyro;
@@ -1115,27 +1103,32 @@ void mano_del_fuego(void)
 
 			if(effectsel == FLANGER)
 			{
+
 				if(fb == 1)
 				{
 					flang.delay++;
-					if(flang.delay > 1024 + flang.delay_range[p1])
+					if(flang.delay > 1200)
 					{
-						flang.delay = 1024 + flang.delay_range[p1];
+						flang.delay = 1200;
+						fb = 0;
+
 					}
 				}
 				else if(fb == 0)
+				{
+					flang.delay--;
+					if(flang.delay < 1)
 					{
-						flang.delay--;
-						if(delay < 1024 - flang.delay_range[p1])
-						{
-							flang.delay = 1024 - flang.delay_range[p1];
-						}
+						flang.delay = 1;
+						fb = 1;
 					}
+				}
+
 				if(timer_reset == 1)
 				{
 
 					CpuTimer1.RegsAddr->TCR.bit.TSS = 1;					// start the timer
-					ConfigCpuTimer(&CpuTimer1, 150, flang.speed[p2]);			// 150Mhz, period defined by flanger structure
+					ConfigCpuTimer(&CpuTimer1, 150, 1100 + p1*100.0*gyro_vol);			// 150Mhz, period defined by flanger structure
 					CpuTimer1.RegsAddr->TCR.bit.TSS = 0;					// start the timer
 					//flang.delay = flang.lower_delay + ((flang.upper_delay - flang.lower_delay) >> 1);
 					timer_reset = 0;
@@ -1250,6 +1243,14 @@ void mano_del_fuego(void)
 			}
   			else if (effectsel == FLANGER)
   			{
+  				//float fdelay;
+  				//Uint16 delay_i;
+  				//fdelay = (float)flang.delay;
+
+  				//fdelay = 4096.0*sinf(fdelay/4096.0*2*3.14159) + 4096;
+  				//delay_i = (Uint16)fdelay;
+
+
   				// *** Flanger Effect *** //
   				flang.delay_index = 0x7fff & (ext_index - flang.delay);
 				McbspaRegs.DXR2.all = (ext_Buffer[flang.delay_index] >> 1) + (ext_Buffer[ext_index] >> 1);

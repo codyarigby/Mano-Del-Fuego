@@ -1,7 +1,7 @@
 ******************************************************************************
              TMS320C2000 Linker PC v15.12.1                    
 ******************************************************************************
->> Linked Thu Apr 19 22:49:10 2018
+>> Linked Sat Apr 21 19:23:26 2018
 
 OUTPUT FILE NAME:   <SENIOR_Codec_app.out>
 ENTRY POINT SYMBOL: "code_start"  address: 0033fff6
@@ -13,7 +13,7 @@ MEMORY CONFIGURATION
 ----------------------  --------  ---------  --------  --------  ----  --------
 PAGE 0:
   ZONE0                 00004000   00001000  00000000  00001000  RWIX
-  RAML0                 00008000   00002000  00001037  00000fc9  RWIX
+  RAML0                 00008000   00002000  00001051  00000faf  RWIX
   RAML2                 0000a000   00001000  00000000  00001000  RWIX
   RAML3                 0000b000   00001000  00000000  00001000  RWIX
   ZONE6                 00100000   00100000  00027fff  000d8001  RWIX
@@ -22,7 +22,7 @@ PAGE 0:
   FLASHG                00308000   00008000  00000000  00008000  RWIX
   FLASHF                00310000   00008000  00000000  00008000  RWIX
   FLASHE                00318000   00008000  00000000  00008000  RWIX
-  FLASHD                00320000   00008000  00001037  00006fc9  RWIX
+  FLASHD                00320000   00008000  00001051  00006faf  RWIX
   FLASHC                00328000   00008000  00000000  00008000  RWIX
   FLASHA                00338000   00007f80  00003852  0000472e  RWIX
   CSM_RSVD              0033ff80   00000076  00000076  00000000  RWIX
@@ -107,11 +107,11 @@ section   page    origin      length       input sections
 extSRAM6   0    00100000    00027fff     UNINITIALIZED
                   00100000    00027fff     main.obj (extSRAM6)
 
-ramfuncs   0    00320000    00001037     RUN ADDR = 00008000
-                  00320000    00000e02     main.obj (ramfuncs)
-                  00320e02    00000216     main.obj (ramfuncs:retain)
-                  00321018    0000001b     DSP2833x_SysCtrl.obj (ramfuncs)
-                  00321033    00000004     DSP2833x_usDelay.obj (ramfuncs)
+ramfuncs   0    00320000    00001051     RUN ADDR = 00008000
+                  00320000    00000e1c     main.obj (ramfuncs)
+                  00320e1c    00000216     main.obj (ramfuncs:retain)
+                  00321032    0000001b     DSP2833x_SysCtrl.obj (ramfuncs)
+                  0032104d    00000004     DSP2833x_usDelay.obj (ramfuncs)
 
 .text      0    00338000    00002595     
                   00338000    00000e8c     UI.obj (.text)
@@ -484,13 +484,13 @@ MODULE SUMMARY
        Module                            code    ro data   rw data
        ------                            ----    -------   -------
     .\
-       main.obj                          8560    0         165122 
+       main.obj                          8612    0         165122 
        UI.obj                            3724    0         5574   
        AsciiLib.obj                      32      0         1520   
        LCD.obj                           786     0         0      
        MDF_init.obj                      446     0         0      
     +--+---------------------------------+-------+---------+---------+
-       Total:                            13548   0         172216 
+       Total:                            13600   0         172216 
                                                                   
     .\common\
        DSP2833x_DefaultIsr.obj           790     0         0      
@@ -541,7 +541,7 @@ MODULE SUMMARY
                                                                   
        Stack:                            0       0         768    
     +--+---------------------------------+-------+---------+---------+
-       Grand Total:                      17925   0         175994 
+       Grand Total:                      17977   0         175994 
 
 
 GLOBAL DATA SYMBOLS: SORTED BY DATA PAGE
@@ -830,7 +830,7 @@ page  address   name
 0     00339445  _DINTCH6_ISR                    
 0     0033a58c  _DSP28x_DisableInt              
 0     0033a590  _DSP28x_RestoreInt              
-0     00009033  _DSP28x_usDelay                 
+0     0000904d  _DSP28x_usDelay                 
 0     0033a42a  _DSPdigaudinterface             
 1     00000880  _DevEmuRegs                     
 0     00339dbe  _DisableDog                     
@@ -902,7 +902,7 @@ page  address   name
 0     0033920b  _INT13_ISR                      
 0     00339215  _INT14_ISR                      
 0     0033a170  _InitCpuTimers                  
-0     00009018  _InitFlash                      
+0     00009032  _InitFlash                      
 0     003399f1  _InitMcbsp                      
 0     00339aca  _InitMcbspGpio                  
 0     003399f6  _InitMcbspa                     
@@ -952,8 +952,8 @@ page  address   name
 1     0000c040  _Prev_Board_State               
 0     00339229  _RTOSINT_ISR                    
 1     0000cb50  _R_channel                      
-0     00321037  _RamfuncsLoadEnd                
-abs   00001037  _RamfuncsLoadSize               
+0     00321051  _RamfuncsLoadEnd                
+abs   00001051  _RamfuncsLoadSize               
 0     00320000  _RamfuncsLoadStart              
 0     00008000  _RamfuncsRunStart               
 0     00339477  _SCIRXINTA_ISR                  
@@ -1099,7 +1099,7 @@ abs   ffffffff  ___pinit__
 0     00339833  _init_dma                       
 0     0033a031  _init_mcbsp_spi                 
 0     00339868  _init_mcbspa                    
-0     00008bee  _init_structs                   
+0     00008bda  _init_structs                   
 0     003399a6  _init_uart                      
 1     0000cb15  _interpol_inc                   
 1     0000cb21  _k                              
@@ -1108,14 +1108,14 @@ abs   ffffffff  ___pinit__
 0     0033a1e3  _ldexpf                         
 0     0033a415  _lhp_volctl                     
 0     0033a409  _linput_volctl                  
-0     00008e98  _local_D_INTCH1_ISR             
-0     00008e19  _local_SCIRXINTB_ISR            
-0     00008ece  _local_XINT1_ISR                
-0     00008f48  _local_XINT3_ISR                
-0     00008f7c  _local_XINT4_ISR                
-0     00008fb0  _local_XINT5_ISR                
-0     00008fe4  _local_XINT6_ISR                
-0     00008e02  _local_timer_ISR                
+0     00008eb2  _local_D_INTCH1_ISR             
+0     00008e33  _local_SCIRXINTB_ISR            
+0     00008ee8  _local_XINT1_ISR                
+0     00008f62  _local_XINT3_ISR                
+0     00008f96  _local_XINT4_ISR                
+0     00008fca  _local_XINT5_ISR                
+0     00008ffe  _local_XINT6_ISR                
+0     00008e1c  _local_timer_ISR                
 0     00339e9c  _log2                           
 0     00339e9c  _log2f                          
 0     00339b5c  _main                           
@@ -1200,21 +1200,21 @@ page  address   name
 ----  -------   ----                            
 0     00008000  _RamfuncsRunStart               
 0     00008000  _mano_del_fuego                 
-0     00008bee  _init_structs                   
-0     00008e02  _local_timer_ISR                
-0     00008e19  _local_SCIRXINTB_ISR            
-0     00008e98  _local_D_INTCH1_ISR             
-0     00008ece  _local_XINT1_ISR                
-0     00008f48  _local_XINT3_ISR                
-0     00008f7c  _local_XINT4_ISR                
-0     00008fb0  _local_XINT5_ISR                
-0     00008fe4  _local_XINT6_ISR                
-0     00009018  _InitFlash                      
-0     00009033  _DSP28x_usDelay                 
+0     00008bda  _init_structs                   
+0     00008e1c  _local_timer_ISR                
+0     00008e33  _local_SCIRXINTB_ISR            
+0     00008eb2  _local_D_INTCH1_ISR             
+0     00008ee8  _local_XINT1_ISR                
+0     00008f62  _local_XINT3_ISR                
+0     00008f96  _local_XINT4_ISR                
+0     00008fca  _local_XINT5_ISR                
+0     00008ffe  _local_XINT6_ISR                
+0     00009032  _InitFlash                      
+0     0000904d  _DSP28x_usDelay                 
 0     00100000  _ext_Buffer                     
 0     00108000  _echo_Buffer                    
 0     00320000  _RamfuncsLoadStart              
-0     00321037  _RamfuncsLoadEnd                
+0     00321051  _RamfuncsLoadEnd                
 0     00338000  .text                           
 0     00338000  ___text__                       
 0     00338000  _cents                          
@@ -1597,7 +1597,7 @@ page  address   name
 1     0033fff8  _CsmPwl                         
 1     00380090  _PartIdRegs                     
 abs   00000300  __STACK_SIZE                    
-abs   00001037  _RamfuncsLoadSize               
+abs   00001051  _RamfuncsLoadSize               
 abs   ffffffff  ___TI_pprof_out_hndl            
 abs   ffffffff  ___TI_prof_data_size            
 abs   ffffffff  ___TI_prof_data_start           
